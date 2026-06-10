@@ -584,13 +584,21 @@ select { appearance: none; cursor: pointer; }
   font-weight: 500;
 }
 
-/* ── Team Row ── */
-.match-body {
+/* ── Teams Row ── */
+.match-teams {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
   gap: 10px;
   min-height: 54px;
+  margin-bottom: 10px;
+}
+.match-vs {
+  color: var(--muted);
+  font-weight: 700;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: .06em;
 }
 .team {
   display: flex;
@@ -616,13 +624,31 @@ select { appearance: none; cursor: pointer; }
   line-height: 1;
 }
 
-/* Score area */
-.score-inputs {
+/* ── Action Row (score inputs / results + save) ── */
+.match-action-row {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+}
+.action-left { /* spacer, mirrors right column width */ }
+.action-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+.action-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+.inputs-row {
   display: flex;
   align-items: center;
   gap: 6px;
-  justify-content: center;
-  flex-shrink: 0;
 }
 .score-input {
   width: 46px !important;
