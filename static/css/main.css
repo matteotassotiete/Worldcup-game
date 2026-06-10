@@ -764,6 +764,40 @@ select { appearance: none; cursor: pointer; }
 .your-pred, .no-pred { font-size: 0.8rem; text-align: center; min-width: 70px; }
 
 /* ── Leaderboard ── */
+.lb-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+.lb-header h2 { margin: 0; }
+.group-code-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 6px 14px;
+  cursor: default;
+}
+.group-code-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--muted);
+}
+.group-code-val {
+  font-size: 1.05rem;
+  font-weight: 900;
+  letter-spacing: .15em;
+  color: var(--gold);
+  font-family: monospace;
+}
+
 .tab-bar {
   display: flex;
   gap: 6px;

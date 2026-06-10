@@ -1,7 +1,15 @@
 {% extends "base.html" %}
 {% block title %}Leaderboard — WC 2026{% endblock %}
 {% block content %}
-<h2>🏆 Leaderboard</h2>
+<div class="lb-header">
+  <h2>🏆 Leaderboard</h2>
+  {% if selected_group_obj %}
+  <div class="group-code-badge" title="Share this code with friends">
+    <span class="group-code-label">Invite code</span>
+    <span class="group-code-val">{{ selected_group_obj.code }}</span>
+  </div>
+  {% endif %}
+</div>
 
 <div class="tab-bar">
   <a href="?group=everyone" class="tab {% if selected_group=='everyone' %}active{% endif %}">🌍 Everyone</a>

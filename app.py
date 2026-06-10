@@ -389,11 +389,14 @@ def leaderboard():
                 ORDER BY total_points DESC, exacts DESC
             """).fetchall()
 
+    selected_group_obj = None
     if selected_group == "everyone":
         standings = get_standings()
     else:
         try:
-            standings = get_standings(int(selected_group))
+            gid = int(selected_group)
+            standings = get_standings(gid)
+            selected_group_obj = next((g for g in user_groups if g["id"] == gid), None)
         except ValueError:
             standings = get_standings()
 
@@ -401,6 +404,7 @@ def leaderboard():
                            user_groups=user_groups,
                            standings=standings,
                            selected_group=selected_group,
+                           selected_group_obj=selected_group_obj,
                            current_user_id=user_id)
 
 
