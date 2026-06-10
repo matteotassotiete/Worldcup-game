@@ -3,13 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>{% block title %}WC 2026 Predictor{% endblock %}</title>
+<title>{% block title %}Work Up World Cup Game{% endblock %}</title>
 <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
 </head>
 <body>
 {% if session.user_id %}
 <nav>
-  <a href="{{ url_for('predict') }}" class="nav-brand">⚽ <span>WC 2026</span></a>
+  <a href="{{ url_for('predict') }}" class="nav-brand">⚽ <span>Work Up WC</span></a>
   <div class="nav-links">
     <a href="{{ url_for('predict') }}" {% if request.endpoint=='predict' %}class="active"{% endif %}>Predict</a>
     <a href="{{ url_for('leaderboard') }}" {% if request.endpoint=='leaderboard' %}class="active"{% endif %}>Standings</a>
