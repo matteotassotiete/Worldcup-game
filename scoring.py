@@ -25,7 +25,7 @@ def score_prediction(hp, ap, ha, aa) -> dict:
     elif pred_result == actual_result:
         base = 40
     elif abs(hp - ha) + abs(ap - aa) == 1:
-        base = 20
+        base = 15
     else:
         base = 0
 

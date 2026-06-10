@@ -27,7 +27,7 @@ def test_result_only():
 
 def test_one_goal_away():
     r = score_prediction(2, 1, 1, 1)
-    assert r["base"] == 20
+    assert r["base"] == 15
 
 def test_zero_base():
     # 2-1 pred, 0-3 actual → completely wrong
@@ -105,5 +105,5 @@ def test_zero_base_no_bonuses():
 
 def test_one_goal_away_no_bonuses():
     r = score_prediction(2, 1, 1, 1)
-    assert r["base"] == 20
+    assert r["base"] == 15
     assert r["bonus"] == 0
