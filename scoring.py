@@ -32,27 +32,19 @@ def score_prediction(hp, ap, ha, aa) -> dict:
     bonus = 0
     bonus_labels = []
 
-    if base > 0:
-        # +10 Sharp Total: predicted total == actual total, but not exact score
-        if hp + ap == ha + aa and base < 100:
-            bonus += 10
+    if 0 < base < 100:
+        # +5 Sharp Total: predicted total goals == actual total goals
+        if hp + ap == ha + aa:
+            bonus += 5
             bonus_labels.append("Sharp Total")
 
-        # +10 Brave Call: predicted a draw and it was a draw
-        if pred_result == 0 and actual_result == 0 and base >= 50:
-            bonus += 10
-            bonus_labels.append("Brave Call")
-
-        # +15 Clean Sheet Caller: predicted correct team to keep a clean sheet
-        # "predicted X-0 with correct result, actual was also X-0 shape for that side"
+        # +5 Clean Sheet Caller: predicted correct team to keep a clean sheet
         if pred_result == actual_result:
-            # home team kept clean sheet
             if ap == 0 and aa == 0:
-                bonus += 15
+                bonus += 5
                 bonus_labels.append("Clean Sheet Caller")
-            # away team kept clean sheet
             elif hp == 0 and ha == 0:
-                bonus += 15
+                bonus += 5
                 bonus_labels.append("Clean Sheet Caller")
 
     return {
