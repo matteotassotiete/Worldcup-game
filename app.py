@@ -1,7 +1,7 @@
 import os
 import random
 import string
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from functools import wraps
 
 from flask import (Flask, render_template, request, redirect, url_for,
@@ -16,7 +16,19 @@ from db import get_db, init_db
 app = Flask(__name__)
 app.secret_key = os.environ["SECRET_KEY"]
 
-TOURNAMENT_LOCK_MATCH_ID = None  # set lazily from DB (first kickoff)
+
+# ── DB connection per request ─────────────────────────────────────────────────
+
+def get_request_db():
+    if "_db" not in g:
+        g._db = get_db()
+    return g._db
+
+@app.teardown_appcontext
+def close_db(exc):
+    db = g.pop("_db", None)
+    if db is not None:
+        db.close()
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -33,12 +45,12 @@ def login_required(f):
 def get_current_user():
     if "user_id" not in session:
         return None
-    db = get_db()
-    return db.execute("SELECT * FROM users WHERE id=?", (session["user_id"],)).fetchone()
+    db = get_request_db()
+    return db.execute("SELECT * FROM users WHERE id=%s", (session["user_id"],)).fetchone()
 
 
 def tournament_locked():
-    db = get_db()
+    db = get_request_db()
     first = db.execute(
         "SELECT kickoff_utc FROM matches ORDER BY kickoff_utc LIMIT 1"
     ).fetchone()
@@ -49,19 +61,18 @@ def tournament_locked():
 
 
 def generate_group_code():
-    chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # no 0/O/1/I
+    chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
     while True:
         code = "".join(random.choices(chars, k=6))
-        db = get_db()
-        existing = db.execute("SELECT id FROM groups WHERE code=?", (code,)).fetchone()
+        db = get_request_db()
+        existing = db.execute("SELECT id FROM groups WHERE code=%s", (code,)).fetchone()
         if not existing:
             return code
 
 
 def prediction_is_open(kickoff_utc_str):
     kickoff = datetime.fromisoformat(kickoff_utc_str.replace("Z", "+00:00"))
-    now = datetime.now(timezone.utc)
-    return now < kickoff - __import__("datetime").timedelta(hours=1)
+    return datetime.now(timezone.utc) < kickoff - timedelta(hours=1)
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
@@ -87,17 +98,18 @@ def signup():
             return render_template("signup.html")
 
         pin_hash = generate_password_hash(pin)
-        db = get_db()
+        db = get_request_db()
         try:
-            cur = db.execute(
-                "INSERT INTO users (team_name, pin_hash) VALUES (?, ?)",
+            user_id = db.insert_returning_id(
+                "INSERT INTO users (team_name, pin_hash) VALUES (%s, %s) RETURNING id",
                 (team_name, pin_hash)
             )
             db.commit()
-            session["user_id"] = cur.lastrowid
+            session["user_id"] = user_id
             session["team_name"] = team_name
             return redirect(url_for("group"))
         except Exception:
+            db._conn.rollback() if hasattr(db, '_conn') else None
             flash("That team name is already taken.")
             return render_template("signup.html")
 
@@ -110,9 +122,9 @@ def login():
         team_name = request.form.get("team_name", "").strip()
         pin = request.form.get("pin", "").strip()
 
-        db = get_db()
+        db = get_request_db()
         user = db.execute(
-            "SELECT * FROM users WHERE team_name=? COLLATE NOCASE", (team_name,)
+            "SELECT * FROM users WHERE LOWER(team_name)=LOWER(%s)", (team_name,)
         ).fetchone()
 
         if not user or not check_password_hash(user["pin_hash"], pin):
@@ -137,7 +149,7 @@ def logout():
 def group():
     if request.method == "POST":
         action = request.form.get("action")
-        db = get_db()
+        db = get_request_db()
         user_id = session["user_id"]
 
         if action == "create":
@@ -146,20 +158,23 @@ def group():
                 flash("Group name required.")
                 return render_template("group.html")
             code = generate_group_code()
-            cur = db.execute("INSERT INTO groups (name, code) VALUES (?, ?)", (name, code))
-            group_id = cur.lastrowid
-            db.execute("INSERT INTO group_members (group_id, user_id) VALUES (?, ?)", (group_id, user_id))
+            group_id = db.insert_returning_id(
+                "INSERT INTO groups (name, code) VALUES (%s, %s) RETURNING id",
+                (name, code)
+            )
+            db.execute("INSERT INTO group_members (group_id, user_id) VALUES (%s, %s)",
+                       (group_id, user_id))
             db.commit()
             return render_template("group.html", created_code=code, created_name=name)
 
         elif action == "join":
             code = request.form.get("code", "").strip().upper()
-            grp = db.execute("SELECT * FROM groups WHERE code=?", (code,)).fetchone()
+            grp = db.execute("SELECT * FROM groups WHERE code=%s", (code,)).fetchone()
             if not grp:
                 flash("Group not found. Check the code.")
                 return render_template("group.html")
             try:
-                db.execute("INSERT INTO group_members (group_id, user_id) VALUES (?, ?)",
+                db.execute("INSERT INTO group_members (group_id, user_id) VALUES (%s, %s)",
                            (grp["id"], user_id))
                 db.commit()
                 flash(f"Joined group \"{grp['name']}\"!")
@@ -174,7 +189,7 @@ def group():
 @login_required
 def picks():
     locked = tournament_locked()
-    db = get_db()
+    db = get_request_db()
     user = get_current_user()
 
     if request.method == "POST":
@@ -184,16 +199,15 @@ def picks():
         champion = request.form.get("champion_pick", "").strip()
         top_scorer = request.form.get("top_scorer_pick", "").strip()
         db.execute(
-            "UPDATE users SET champion_pick=?, top_scorer_pick=? WHERE id=?",
+            "UPDATE users SET champion_pick=%s, top_scorer_pick=%s WHERE id=%s",
             (champion or None, top_scorer or None, session["user_id"])
         )
         db.commit()
         flash("Picks saved!")
         return redirect(url_for("picks"))
 
-    # Build team list from matches
     teams = set()
-    for row in db.execute("SELECT home_team, away_team FROM matches"):
+    for row in db.execute("SELECT home_team, away_team FROM matches").fetchall():
         teams.add(row["home_team"])
         teams.add(row["away_team"])
     teams = sorted(teams)
@@ -204,33 +218,29 @@ def picks():
 @app.route("/predict")
 @login_required
 def predict():
-    db = get_db()
+    db = get_request_db()
     user_id = session["user_id"]
 
-    matches = db.execute(
-        "SELECT * FROM matches ORDER BY kickoff_utc"
-    ).fetchall()
+    matches = db.execute("SELECT * FROM matches ORDER BY kickoff_utc").fetchall()
 
-    # Fetch user's predictions keyed by match_id
     preds = {row["match_id"]: row for row in db.execute(
-        "SELECT * FROM predictions WHERE user_id=?", (user_id,)
-    )}
+        "SELECT * FROM predictions WHERE user_id=%s", (user_id,)
+    ).fetchall()}
 
-    # Fetch settlements for user's predictions
     settled_map = {}
     if preds:
         pred_ids = list(preds.keys())
-        placeholders = ",".join("?" * len(pred_ids))
+        placeholders = ",".join(["%s"] * len(pred_ids))
         for row in db.execute(
             f"SELECT s.*, p.match_id FROM settlements s "
             f"JOIN predictions p ON p.id=s.prediction_id "
-            f"WHERE p.user_id=? AND p.match_id IN ({placeholders})",
+            f"WHERE p.user_id=%s AND p.match_id IN ({placeholders})",
             [user_id] + pred_ids
-        ):
+        ).fetchall():
             settled_map[row["match_id"]] = row
 
-    now_utc = datetime.now(timezone.utc).isoformat()
     open_map = {m["id"]: prediction_is_open(m["kickoff_utc"]) for m in matches}
+    now_utc = datetime.now(timezone.utc).isoformat()
     return render_template("predict.html",
                            matches=matches,
                            preds=preds,
@@ -253,8 +263,8 @@ def api_predict():
     if not (0 <= home_pred <= 15 and 0 <= away_pred <= 15):
         return jsonify({"error": "Scores must be 0–15."}), 400
 
-    db = get_db()
-    match = db.execute("SELECT * FROM matches WHERE id=?", (match_id,)).fetchone()
+    db = get_request_db()
+    match = db.execute("SELECT * FROM matches WHERE id=%s", (match_id,)).fetchone()
     if not match:
         return jsonify({"error": "Match not found."}), 404
 
@@ -262,14 +272,15 @@ def api_predict():
         return jsonify({"error": "Predictions are locked for this match."}), 403
 
     user_id = session["user_id"]
+    now = datetime.now(timezone.utc).isoformat()
     db.execute("""
         INSERT INTO predictions (user_id, match_id, home_pred, away_pred, updated_at)
-        VALUES (?, ?, ?, ?, datetime('now'))
+        VALUES (%s, %s, %s, %s, %s)
         ON CONFLICT(user_id, match_id) DO UPDATE SET
-            home_pred=excluded.home_pred,
-            away_pred=excluded.away_pred,
-            updated_at=excluded.updated_at
-    """, (user_id, match_id, home_pred, away_pred))
+            home_pred=EXCLUDED.home_pred,
+            away_pred=EXCLUDED.away_pred,
+            updated_at=EXCLUDED.updated_at
+    """, (user_id, match_id, home_pred, away_pred, now))
     db.commit()
     return jsonify({"ok": True})
 
@@ -277,14 +288,13 @@ def api_predict():
 @app.route("/leaderboard")
 @login_required
 def leaderboard():
-    db = get_db()
+    db = get_request_db()
     user_id = session["user_id"]
 
-    # Groups the user belongs to
     user_groups = db.execute("""
         SELECT g.* FROM groups g
         JOIN group_members gm ON gm.group_id=g.id
-        WHERE gm.user_id=?
+        WHERE gm.user_id=%s
         ORDER BY g.name
     """, (user_id,)).fetchall()
 
@@ -292,44 +302,42 @@ def leaderboard():
 
     def get_standings(group_id=None):
         if group_id:
-            rows = db.execute("""
+            return db.execute("""
                 SELECT u.id, u.team_name,
                     COALESCE(SUM(s.total_points), 0)
-                    + COALESCE(ta.champion_points, 0)
-                    + COALESCE(ta.top_scorer_points, 0) AS total_points,
+                    + COALESCE(MAX(ta.champion_points), 0)
+                    + COALESCE(MAX(ta.top_scorer_points), 0) AS total_points,
                     COUNT(CASE WHEN s.base_points=100 THEN 1 END) AS exacts,
                     COUNT(p.id) AS predictions_made
                 FROM users u
-                JOIN group_members gm ON gm.user_id=u.id AND gm.group_id=?
+                JOIN group_members gm ON gm.user_id=u.id AND gm.group_id=%s
                 LEFT JOIN predictions p ON p.user_id=u.id
                 LEFT JOIN settlements s ON s.prediction_id=p.id
                 LEFT JOIN tournament_awards ta ON ta.user_id=u.id
-                GROUP BY u.id
+                GROUP BY u.id, u.team_name
                 ORDER BY total_points DESC, exacts DESC
             """, (group_id,)).fetchall()
         else:
-            rows = db.execute("""
+            return db.execute("""
                 SELECT u.id, u.team_name,
                     COALESCE(SUM(s.total_points), 0)
-                    + COALESCE(ta.champion_points, 0)
-                    + COALESCE(ta.top_scorer_points, 0) AS total_points,
+                    + COALESCE(MAX(ta.champion_points), 0)
+                    + COALESCE(MAX(ta.top_scorer_points), 0) AS total_points,
                     COUNT(CASE WHEN s.base_points=100 THEN 1 END) AS exacts,
                     COUNT(p.id) AS predictions_made
                 FROM users u
                 LEFT JOIN predictions p ON p.user_id=u.id
                 LEFT JOIN settlements s ON s.prediction_id=p.id
                 LEFT JOIN tournament_awards ta ON ta.user_id=u.id
-                GROUP BY u.id
+                GROUP BY u.id, u.team_name
                 ORDER BY total_points DESC, exacts DESC
             """).fetchall()
-        return rows
 
     if selected_group == "everyone":
         standings = get_standings()
     else:
         try:
-            gid = int(selected_group)
-            standings = get_standings(gid)
+            standings = get_standings(int(selected_group))
         except ValueError:
             standings = get_standings()
 

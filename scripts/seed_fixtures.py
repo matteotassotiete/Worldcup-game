@@ -2,35 +2,26 @@
 """One-time (re-runnable / idempotent) pull of all WC 2026 fixtures."""
 import os
 import sys
-import sqlite3
 import requests
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from dotenv import load_dotenv
-
 load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
 
+from db import get_db, init_db
+
 TOKEN = os.environ["FOOTBALL_DATA_TOKEN"]
-DB_PATH = os.path.join(os.path.dirname(__file__), "..", "app.db")
 API_BASE = "https://api.football-data.org/v4"
 HEADERS = {"X-Auth-Token": TOKEN}
 
 
 def fetch_all_matches():
-    matches = []
-    url = f"{API_BASE}/competitions/WC/matches"
-    while url:
-        resp = requests.get(url, headers=HEADERS, timeout=15)
-        resp.raise_for_status()
-        data = resp.json()
-        matches.extend(data.get("matches", []))
-        # free tier doesn't paginate, but handle it defensively
-        next_page = data.get("nextPage")
-        url = f"{API_BASE}/competitions/WC/matches?page={next_page}" if next_page else None
-    return matches
+    resp = requests.get(f"{API_BASE}/competitions/WC/matches", headers=HEADERS, timeout=15)
+    resp.raise_for_status()
+    return resp.json().get("matches", [])
 
 
-def upsert_match(cur, m):
+def upsert_match(db, m):
     match_id = m["id"]
     kickoff = m.get("utcDate", "")
     stage = m.get("stage", "")
@@ -40,7 +31,6 @@ def upsert_match(cur, m):
     status = m.get("status", "SCHEDULED")
 
     score = m.get("score", {})
-    # Group stage: use fullTime; knockout: use regularTime
     if stage and "GROUP" in stage.upper():
         s = score.get("fullTime", {})
     else:
@@ -49,56 +39,48 @@ def upsert_match(cur, m):
     home_score = s.get("home")
     away_score = s.get("away")
 
-    cur.execute("""
+    db.execute("""
         INSERT INTO matches (id, kickoff_utc, stage, group_label, home_team, away_team,
                              home_score, away_score, status)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
         ON CONFLICT(id) DO UPDATE SET
-            kickoff_utc  = excluded.kickoff_utc,
-            stage        = excluded.stage,
-            group_label  = excluded.group_label,
-            home_team    = excluded.home_team,
-            away_team    = excluded.away_team,
-            home_score   = excluded.home_score,
-            away_score   = excluded.away_score,
-            status       = excluded.status
-        -- never overwrite settled flag here
+            kickoff_utc  = EXCLUDED.kickoff_utc,
+            stage        = EXCLUDED.stage,
+            group_label  = EXCLUDED.group_label,
+            home_team    = EXCLUDED.home_team,
+            away_team    = EXCLUDED.away_team,
+            home_score   = EXCLUDED.home_score,
+            away_score   = EXCLUDED.away_score,
+            status       = EXCLUDED.status
     """, (match_id, kickoff, stage, group_label, home_team, away_team,
           home_score, away_score, status))
 
 
-def init_db(con):
-    schema = os.path.join(os.path.dirname(__file__), "..", "schema.sql")
-    with open(schema) as f:
-        con.executescript(f.read())
-
-
 def main():
-    con = sqlite3.connect(DB_PATH)
-    con.row_factory = sqlite3.Row
-    init_db(con)
+    init_db()
+    db = get_db()
 
     print("Fetching fixtures from football-data.org …")
     matches = fetch_all_matches()
     print(f"  Got {len(matches)} matches")
 
-    cur = con.cursor()
     for m in matches:
-        upsert_match(cur, m)
-    con.commit()
+        upsert_match(db, m)
+    db.commit()
 
-    rows = cur.execute(
+    rows = db.execute(
         "SELECT id, kickoff_utc, stage, home_team, away_team, status FROM matches ORDER BY kickoff_utc LIMIT 5"
     ).fetchall()
+
     print("\nFirst 5 fixtures in DB:")
     print(f"  {'ID':>8}  {'Kickoff (UTC)':<22}  {'Stage':<30}  {'Home':<20}  {'Away':<20}  Status")
     print("  " + "-" * 115)
     for r in rows:
         print(f"  {r['id']:>8}  {r['kickoff_utc']:<22}  {r['stage']:<30}  {r['home_team']:<20}  {r['away_team']:<20}  {r['status']}")
 
-    total = cur.execute("SELECT COUNT(*) FROM matches").fetchone()[0]
+    total = db.execute("SELECT COUNT(*) AS n FROM matches").fetchone()["n"]
     print(f"\nTotal matches in DB: {total}")
-    con.close()
+    db.close()
 
 
 if __name__ == "__main__":

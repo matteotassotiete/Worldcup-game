@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: worldcup-game
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --timeout 30
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: SECRET_KEY
+        sync: false
+      - key: FOOTBALL_DATA_TOKEN
+        sync: false
