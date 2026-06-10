@@ -3,6 +3,13 @@ import random
 import string
 from datetime import datetime, timezone, timedelta
 from functools import wraps
+from zoneinfo import ZoneInfo
+
+LOCAL_TZ = ZoneInfo("America/Los_Angeles")
+
+def utc_to_local_date(utc_str):
+    dt = datetime.fromisoformat(utc_str.replace("Z", "+00:00"))
+    return dt.astimezone(LOCAL_TZ).strftime("%Y-%m-%d")
 
 from flask import (Flask, render_template, request, redirect, url_for,
                    session, jsonify, flash, g)
@@ -238,10 +245,10 @@ def predict():
 
     open_map = {m["id"]: prediction_is_open(m["kickoff_utc"]) for m in matches}
 
-    # Group by date (YYYY-MM-DD from kickoff_utc)
+    # Group by local (Pacific) date
     by_date = defaultdict(list)
     for m in matches:
-        by_date[m["kickoff_utc"][:10]].append(m)
+        by_date[utc_to_local_date(m["kickoff_utc"])].append(m)
     dates = sorted(by_date.keys())
 
     # Per-date summary for tab badges
@@ -271,7 +278,7 @@ def predict():
                            open_map=open_map,
                            total_pts=total_pts,
                            exacts=exacts,
-                           today=datetime.now(timezone.utc).strftime("%Y-%m-%d"))
+                           today=datetime.now(LOCAL_TZ).strftime("%Y-%m-%d"))
 
 
 @app.route("/api/predict", methods=["POST"])
