@@ -208,6 +208,20 @@ document.querySelectorAll('.match-card').forEach((card, i) => {
   card.style.animationDelay = `${i * 40}ms`;
 });
 
+// ── Nav dropdown ─────────────────────────────────────────────────────────────
+function toggleNavMenu() {
+  const dd = document.getElementById('nav-dropdown');
+  if (dd) dd.classList.toggle('open');
+}
+// Close when clicking outside
+document.addEventListener('click', e => {
+  const wrap = document.getElementById('nav-dd-wrap');
+  if (wrap && !wrap.contains(e.target)) {
+    const dd = document.getElementById('nav-dropdown');
+    if (dd) dd.classList.remove('open');
+  }
+});
+
 // ── Group code uppercase ──────────────────────────────────────────────────────
 const codeInput = document.querySelector("input[name='code']");
 if (codeInput) {

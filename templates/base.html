@@ -13,9 +13,33 @@
   <div class="nav-links">
     <a href="{{ url_for('predict') }}" {% if request.endpoint=='predict' %}class="active"{% endif %}>Predict</a>
     <a href="{{ url_for('leaderboard') }}" {% if request.endpoint=='leaderboard' %}class="active"{% endif %}>Standings</a>
-    <a href="{{ url_for('group') }}" {% if request.endpoint=='group' %}class="active"{% endif %}>Groups</a>
-    <a href="{{ url_for('picks') }}" {% if request.endpoint=='picks' %}class="active"{% endif %}>Picks</a>
-    <a href="{{ url_for('logout') }}" class="logout">{{ session.team_name }}</a>
+    <a href="{{ url_for('rules') }}" {% if request.endpoint=='rules' %}class="active"{% endif %}>Rules</a>
+
+    <!-- Team dropdown -->
+    <div class="nav-dropdown-wrap" id="nav-dd-wrap">
+      <button class="nav-team-btn" id="nav-team-btn" onclick="toggleNavMenu()">
+        {{ session.team_name }} ▾
+      </button>
+      <div class="nav-dropdown" id="nav-dropdown">
+        <div class="nav-dd-header">{{ session.team_name }}</div>
+
+        {% if nav_groups %}
+        <div class="nav-dd-section-label">My Groups</div>
+        {% for g in nav_groups %}
+        <a href="{{ url_for('leaderboard') }}?group={{ g.id }}" class="nav-dd-item">
+          🏆 {{ g.name }}
+        </a>
+        {% endfor %}
+        {% endif %}
+
+        <div class="nav-dd-divider"></div>
+        <a href="{{ url_for('group') }}" class="nav-dd-item">➕ Join / Create Group</a>
+        <a href="{{ url_for('picks') }}" class="nav-dd-item">🏅 Tournament Picks</a>
+        <a href="{{ url_for('rules') }}" class="nav-dd-item">ℹ️ How Points Work</a>
+        <div class="nav-dd-divider"></div>
+        <a href="{{ url_for('logout') }}" class="nav-dd-item nav-dd-logout">🚪 Log Out</a>
+      </div>
+    </div>
   </div>
 </nav>
 <div id="flag-strip" class="flag-strip"><div class="flag-track"></div></div>

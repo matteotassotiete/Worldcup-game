@@ -27,6 +27,24 @@ app.secret_key = os.environ["SECRET_KEY"]
 PICKS_LOCK_UTC = datetime(2026, 6, 11, 11, 0, 0, tzinfo=timezone.utc)
 
 
+# ── Context processor — inject nav groups into every template ────────────────
+
+@app.context_processor
+def inject_nav_groups():
+    if "user_id" not in session:
+        return {}
+    try:
+        db = get_request_db()
+        groups = db.execute("""
+            SELECT g.* FROM groups g
+            JOIN group_members gm ON gm.group_id=g.id
+            WHERE gm.user_id=%s ORDER BY g.name
+        """, (session["user_id"],)).fetchall()
+        return {"nav_groups": groups}
+    except Exception:
+        return {"nav_groups": []}
+
+
 # ── DB connection per request ─────────────────────────────────────────────────
 
 def get_request_db():
@@ -216,6 +234,12 @@ def picks():
     teams = sorted(teams)
 
     return render_template("picks.html", user=user, teams=teams, locked=locked)
+
+
+@app.route("/rules")
+@login_required
+def rules():
+    return render_template("rules.html")
 
 
 @app.route("/predict")

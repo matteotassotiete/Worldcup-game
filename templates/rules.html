@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+{% block title %}How Points Work — WC 2026{% endblock %}
+{% block content %}
+<h2>⚽ How Points Work</h2>
+
+<!-- Base Points -->
+<div class="rules-section">
+  <h3>Base Points</h3>
+  <p class="rules-intro">Every prediction earns base points. Only the highest tier that matches is awarded — top-down, first match wins.</p>
+
+  <div class="tier-cards">
+    <div class="tier-card tier-100">
+      <div class="tier-pts">100</div>
+      <div class="tier-name">Exact Score</div>
+      <div class="tier-desc">You nailed it — home and away goals both correct.</div>
+      <div class="tier-example">
+        <span class="eg-label">You predicted</span>
+        <span class="eg-score">2 – 1</span>
+        <span class="eg-label">Actual</span>
+        <span class="eg-score">2 – 1</span>
+        <span class="eg-result win">✓ 100 pts</span>
+      </div>
+    </div>
+
+    <div class="tier-card tier-70">
+      <div class="tier-pts">70</div>
+      <div class="tier-name">Right Result + Right Margin</div>
+      <div class="tier-desc">Same winner (or draw) and the goal difference matches, but different scoreline.</div>
+      <div class="tier-example">
+        <span class="eg-label">You predicted</span>
+        <span class="eg-score">2 – 1</span>
+        <span class="eg-label">Actual</span>
+        <span class="eg-score">1 – 0</span>
+        <span class="eg-result win">✓ 70 pts</span>
+      </div>
+      <div class="tier-example" style="margin-top:6px">
+        <span class="eg-label">You predicted</span>
+        <span class="eg-score">1 – 1</span>
+        <span class="eg-label">Actual</span>
+        <span class="eg-score">2 – 2</span>
+        <span class="eg-result win">✓ 70 pts</span>
+      </div>
+    </div>
+
+    <div class="tier-card tier-50">
+      <div class="tier-pts">50</div>
+      <div class="tier-name">Right Result</div>
+      <div class="tier-desc">Got the winner (or draw) but wrong margin.</div>
+      <div class="tier-example">
+        <span class="eg-label">You predicted</span>
+        <span class="eg-score">2 – 1</span>
+        <span class="eg-label">Actual</span>
+        <span class="eg-score">3 – 0</span>
+        <span class="eg-result win">✓ 50 pts</span>
+      </div>
+    </div>
+
+    <div class="tier-card tier-25">
+      <div class="tier-pts">25</div>
+      <div class="tier-name">One Goal Away</div>
+      <div class="tier-desc">Wrong result, but the total error across both scores is exactly 1 goal.</div>
+      <div class="tier-example">
+        <span class="eg-label">You predicted</span>
+        <span class="eg-score">2 – 1</span>
+        <span class="eg-label">Actual</span>
+        <span class="eg-score">1 – 1</span>
+        <span class="eg-result half">~ 25 pts</span>
+      </div>
+    </div>
+
+    <div class="tier-card tier-0">
+      <div class="tier-pts">0</div>
+      <div class="tier-name">Miss</div>
+      <div class="tier-desc">Wrong result and not close enough.</div>
+      <div class="tier-example">
+        <span class="eg-label">You predicted</span>
+        <span class="eg-score">2 – 1</span>
+        <span class="eg-label">Actual</span>
+        <span class="eg-score">0 – 3</span>
+        <span class="eg-result loss">✗ 0 pts</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Bonus Points -->
+<div class="rules-section">
+  <h3>Bonus Points</h3>
+  <p class="rules-intro">Stack on top of base points. Only awarded when base &gt; 0. Each bonus applies at most once per match.</p>
+
+  <div class="bonus-cards">
+    <div class="bonus-card">
+      <div class="bonus-pts">+10</div>
+      <div class="bonus-info">
+        <div class="bonus-name">⚡ Sharp Total</div>
+        <div class="bonus-desc">Your predicted total goals equals the actual total, but it wasn't an exact score.</div>
+        <div class="tier-example">
+          <span class="eg-label">You predicted</span>
+          <span class="eg-score">2 – 1</span>
+          <span class="eg-label">Actual</span>
+          <span class="eg-score">3 – 0</span>
+          <span class="eg-result win">50 + 10 = 60 pts</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="bonus-card">
+      <div class="bonus-pts">+10</div>
+      <div class="bonus-info">
+        <div class="bonus-name">🤝 Brave Call</div>
+        <div class="bonus-desc">You predicted a draw and it actually ended in a draw. Takes guts — gets rewarded.</div>
+        <div class="tier-example">
+          <span class="eg-label">You predicted</span>
+          <span class="eg-score">0 – 0</span>
+          <span class="eg-label">Actual</span>
+          <span class="eg-score">1 – 1</span>
+          <span class="eg-result win">70 + 10 = 80 pts</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="bonus-card">
+      <div class="bonus-pts">+15</div>
+      <div class="bonus-info">
+        <div class="bonus-name">🧤 Clean Sheet Caller</div>
+        <div class="bonus-desc">You predicted a team to keep a clean sheet and they did (e.g. 2–0 and actual was 1–0).</div>
+        <div class="tier-example">
+          <span class="eg-label">You predicted</span>
+          <span class="eg-score">2 – 0</span>
+          <span class="eg-label">Actual</span>
+          <span class="eg-score">1 – 0</span>
+          <span class="eg-result win">50 + 15 = 65 pts</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Max per match -->
+<div class="rules-section">
+  <h3>Max per Match</h3>
+  <div class="max-card">
+    <div class="max-row">
+      <span>Exact score</span><span class="max-val">100</span>
+    </div>
+    <div class="max-row">
+      <span>Clean Sheet Caller</span><span class="max-val">+15</span>
+    </div>
+    <div class="max-row">
+      <span>Brave Call (draws only)</span><span class="max-val">+10</span>
+    </div>
+    <div class="max-row max-total">
+      <span>Max possible</span><span class="max-val gold">125 pts</span>
+    </div>
+  </div>
+</div>
+
+<!-- Tournament Picks -->
+<div class="rules-section">
+  <h3>🏆 Tournament Picks</h3>
+  <p class="rules-intro">Set before the tournament starts. Settled manually after the final.</p>
+  <div class="bonus-cards">
+    <div class="bonus-card">
+      <div class="bonus-pts gold-pts">+250</div>
+      <div class="bonus-info">
+        <div class="bonus-name">🥇 Champion</div>
+        <div class="bonus-desc">Pick the team that lifts the trophy.</div>
+      </div>
+    </div>
+    <div class="bonus-card">
+      <div class="bonus-pts gold-pts">+150</div>
+      <div class="bonus-info">
+        <div class="bonus-name">👟 Top Scorer</div>
+        <div class="bonus-desc">Pick the player who wins the Golden Boot.</div>
+      </div>
+    </div>
+  </div>
+  <a href="{{ url_for('picks') }}" class="btn-primary" style="display:inline-block;width:auto;padding:12px 24px;margin-top:12px;text-decoration:none">
+    Set My Picks →
+  </a>
+</div>
+
+{% endblock %}
