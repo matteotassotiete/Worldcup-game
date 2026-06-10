@@ -14,24 +14,20 @@ def test_exact_score():
     assert r["total"] >= 100
 
 def test_result_and_margin():
-    # 2-1 pred, 1-0 actual → same result (home win), same margin (+1)
     r = score_prediction(2, 1, 1, 0)
-    assert r["base"] == 70
+    assert r["base"] == 60
 
 def test_draw_same_margin():
-    # 1-1 pred, 2-2 actual → draw, margin 0 == 0
     r = score_prediction(1, 1, 2, 2)
-    assert r["base"] == 70
+    assert r["base"] == 60
 
 def test_result_only():
-    # 2-1 pred, 3-0 actual → both home wins, different margin
     r = score_prediction(2, 1, 3, 0)
-    assert r["base"] == 50
+    assert r["base"] == 40
 
 def test_one_goal_away():
-    # 2-1 pred, 1-1 actual → wrong result, |2-1|+|1-1|=1+0=1
     r = score_prediction(2, 1, 1, 1)
-    assert r["base"] == 25
+    assert r["base"] == 20
 
 def test_zero_base():
     # 2-1 pred, 0-3 actual → completely wrong
@@ -39,16 +35,14 @@ def test_zero_base():
     assert r["base"] == 0
 
 def test_brave_call_bonus():
-    # 0-0 pred, 1-1 actual → draw margin matches (0==0), base=70, + Brave Call
     r = score_prediction(0, 0, 1, 1)
-    assert r["base"] == 70
+    assert r["base"] == 60
     assert "Brave Call" in r["bonus_labels"]
     assert r["bonus"] >= 10
 
 def test_clean_sheet_caller_bonus():
-    # 2-0 pred, 1-0 actual → home win, away keeps clean sheet in both
     r = score_prediction(2, 0, 1, 0)
-    assert r["base"] == 50
+    assert r["base"] == 40
     assert "Clean Sheet Caller" in r["bonus_labels"]
 
 def test_sharp_total_no_apply_when_base_zero():
@@ -75,13 +69,12 @@ def test_sharp_total_applies():
     # Try 3-0 pred, 2-1 actual: same result (home win), margin 3 vs 1 → base=50, totals differ
     # Try 2-1 pred, 3-0 actual: base=50, totals 3 vs 3 → Sharp Total!
     r = score_prediction(2, 1, 3, 0)
-    assert r["base"] == 50
+    assert r["base"] == 40
     assert "Sharp Total" in r["bonus_labels"]
 
 def test_clean_sheet_away_side():
-    # 0-2 pred, 0-1 actual → away win, home keeps clean sheet in both
     r = score_prediction(0, 2, 0, 1)
-    assert r["base"] == 50
+    assert r["base"] == 40
     assert "Clean Sheet Caller" in r["bonus_labels"]
 
 def test_clean_sheet_not_awarded_if_wrong_result():
@@ -111,9 +104,6 @@ def test_zero_base_no_bonuses():
     assert r["total"] == 0
 
 def test_one_goal_away_no_bonuses():
-    # base=25, bonuses should still be checked (base > 0) — but Sharp Total?
-    # 2-1 pred, 1-1 actual: totals 3 vs 2, different result → base=25
-    # Sharp Total: 3 != 2, no. Brave Call: pred not draw. Clean Sheet: no.
     r = score_prediction(2, 1, 1, 1)
-    assert r["base"] == 25
+    assert r["base"] == 20
     assert r["bonus"] == 0

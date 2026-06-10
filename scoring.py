@@ -21,11 +21,11 @@ def score_prediction(hp, ap, ha, aa) -> dict:
     if hp == ha and ap == aa:
         base = 100
     elif pred_result == actual_result and pred_margin == actual_margin:
-        base = 70
+        base = 60
     elif pred_result == actual_result:
-        base = 50
+        base = 40
     elif abs(hp - ha) + abs(ap - aa) == 1:
-        base = 25
+        base = 20
     else:
         base = 0
 
