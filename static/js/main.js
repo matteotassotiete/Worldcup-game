@@ -60,19 +60,18 @@ function buildFlagStrip() {
 }
 buildFlagStrip();
 
-// ── Inject flags into match cards ─────────────────────────────────────────────
+// ── Inject flags into match cards (always above the name) ────────────────────
 document.querySelectorAll('.team[data-name]').forEach(el => {
   const name = el.dataset.name;
-  const img = flagImg(name);
+  const url = flagUrl(name);
   const nameEl = el.querySelector('.team-name-text');
-  if (img && nameEl) {
-    const imgEl = document.createElement('div');
-    imgEl.innerHTML = img;
-    if (el.classList.contains('home')) {
-      nameEl.after(imgEl.firstChild);
-    } else {
-      nameEl.before(imgEl.firstChild);
-    }
+  if (url && nameEl) {
+    const img = document.createElement('img');
+    img.className = 'team-flag';
+    img.src = url;
+    img.alt = name;
+    img.onerror = () => img.remove();
+    nameEl.before(img); // always insert BEFORE (above) the name
   }
 });
 

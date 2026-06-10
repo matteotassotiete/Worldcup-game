@@ -16,6 +16,9 @@ from db import get_db, init_db
 app = Flask(__name__)
 app.secret_key = os.environ["SECRET_KEY"]
 
+# Tournament picks lock: June 11 2026 at 11:00 UTC (8h before first kickoff)
+PICKS_LOCK_UTC = datetime(2026, 6, 11, 11, 0, 0, tzinfo=timezone.utc)
+
 
 # ── DB connection per request ─────────────────────────────────────────────────
 
@@ -50,14 +53,7 @@ def get_current_user():
 
 
 def tournament_locked():
-    db = get_request_db()
-    first = db.execute(
-        "SELECT kickoff_utc FROM matches ORDER BY kickoff_utc LIMIT 1"
-    ).fetchone()
-    if not first:
-        return False
-    lock_dt = datetime.fromisoformat(first["kickoff_utc"].replace("Z", "+00:00"))
-    return datetime.now(timezone.utc) >= lock_dt
+    return datetime.now(timezone.utc) >= PICKS_LOCK_UTC
 
 
 def generate_group_code():
@@ -218,6 +214,7 @@ def picks():
 @app.route("/predict")
 @login_required
 def predict():
+    from collections import defaultdict
     db = get_request_db()
     user_id = session["user_id"]
 
@@ -240,13 +237,41 @@ def predict():
             settled_map[row["match_id"]] = row
 
     open_map = {m["id"]: prediction_is_open(m["kickoff_utc"]) for m in matches}
-    now_utc = datetime.now(timezone.utc).isoformat()
+
+    # Group by date (YYYY-MM-DD from kickoff_utc)
+    by_date = defaultdict(list)
+    for m in matches:
+        by_date[m["kickoff_utc"][:10]].append(m)
+    dates = sorted(by_date.keys())
+
+    # Per-date summary for tab badges
+    date_summary = {}
+    for date in dates:
+        pts = sum(settled_map[m["id"]]["total_points"]
+                  for m in by_date[date]
+                  if m["settled"] and m["id"] in settled_map)
+        settled_n = sum(1 for m in by_date[date] if m["settled"])
+        open_n = sum(1 for m in by_date[date] if open_map[m["id"]])
+        predicted_n = sum(1 for m in by_date[date] if m["id"] in preds)
+        date_summary[date] = {"pts": pts, "settled": settled_n,
+                               "open": open_n, "predicted": predicted_n,
+                               "count": len(by_date[date])}
+
+    # Overall user stats
+    total_pts = sum(s["total_points"] for s in settled_map.values())
+    exacts = sum(1 for s in settled_map.values() if s["base_points"] == 100)
+
     return render_template("predict.html",
                            matches=matches,
+                           by_date=by_date,
+                           dates=dates,
+                           date_summary=date_summary,
                            preds=preds,
                            settled_map=settled_map,
                            open_map=open_map,
-                           now_utc=now_utc)
+                           total_pts=total_pts,
+                           exacts=exacts,
+                           today=datetime.now(timezone.utc).strftime("%Y-%m-%d"))
 
 
 @app.route("/api/predict", methods=["POST"])

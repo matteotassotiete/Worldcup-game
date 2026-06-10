@@ -1,85 +1,174 @@
 {% extends "base.html" %}
 {% block title %}Predict — WC 2026{% endblock %}
 {% block content %}
-<h2>Your Predictions</h2>
-<div id="match-list">
-{% set ns = namespace(last_date='') %}
-{% for m in matches %}
-  {% set is_open = open_map[m.id] %}
-  {% set state = 'settled' if m.settled else ('open' if is_open else 'locked') %}
 
-  {% set kickoff_date = m.kickoff_utc[:10] %}
-  {% if kickoff_date != ns.last_date %}
-    <div class="date-header" data-date="{{ kickoff_date }}">{{ kickoff_date }}</div>
-    {% set ns.last_date = kickoff_date %}
-  {% endif %}
+<!-- My Stats Bar -->
+<div class="my-stats-bar">
+  <div class="my-stat">
+    <span class="my-stat-val">{{ total_pts }}</span>
+    <span class="my-stat-label">My Points</span>
+  </div>
+  <div class="my-stat-divider"></div>
+  <div class="my-stat">
+    <span class="my-stat-val">{{ exacts }}</span>
+    <span class="my-stat-label">Exact Scores</span>
+  </div>
+  <div class="my-stat-divider"></div>
+  <div class="my-stat">
+    <span class="my-stat-val">{{ preds|length }}</span>
+    <span class="my-stat-label">Predictions</span>
+  </div>
+</div>
 
-  <div class="match-card {{ state }}" data-match-id="{{ m.id }}" data-kickoff="{{ m.kickoff_utc }}">
-    <div class="match-inner">
-      <div class="match-meta">
-        <span class="stage-badge">{{ m.stage | replace('_', ' ') }}{% if m.group_label %} · {{ m.group_label }}{% endif %}</span>
-        <span class="kickoff-time" data-utc="{{ m.kickoff_utc }}">{{ m.kickoff_utc }}</span>
-      </div>
-      <div class="match-body">
-        <div class="team home" data-name="{{ m.home_team }}">
-          <span class="team-name-text">{{ m.home_team }}</span>
+<!-- Date Tabs -->
+<div class="date-tabs-wrap">
+  <div class="date-tabs" id="date-tabs">
+    {% for date in dates %}
+      {% set s = date_summary[date] %}
+      {% set month = date[5:7]|int %}
+      {% set day = date[8:10]|int %}
+      {% set month_names = {6:'Jun',7:'Jul'} %}
+      <button class="date-tab" data-date="{{ date }}" id="tab-{{ date }}">
+        <span class="dt-label">{% if date == today %}Today{% else %}{{ month_names.get(month, 'Jun') }} {{ day }}{% endif %}</span>
+        <span class="dt-games">{{ s.count }}
+          {%- if s.count == 1 %} game{% else %} games{% endif %}</span>
+        {% if s.settled == s.count and s.count > 0 %}
+          <span class="dt-pts {% if s.pts > 0 %}dt-pts-good{% endif %}">{{ s.pts }}pts</span>
+        {% elif s.open > 0 %}
+          <span class="dt-open">{{ s.open }} open</span>
+        {% elif s.predicted > 0 %}
+          <span class="dt-locked">locked</span>
+        {% endif %}
+      </button>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Match Sections per Date -->
+{% for date in dates %}
+  {% set s = date_summary[date] %}
+  <div class="date-section" id="date-{{ date }}" style="display:none">
+
+    <!-- Day summary if some settled -->
+    {% if s.settled > 0 %}
+    <div class="day-summary">
+      <span>{{ s.settled }}/{{ s.count }} settled</span>
+      <span class="day-pts">+{{ s.pts }} pts today</span>
+    </div>
+    {% endif %}
+
+    {% for m in by_date[date] %}
+      {% set is_open = open_map[m.id] %}
+      {% set state = 'settled' if m.settled else ('open' if is_open else 'locked') %}
+      {% set pred = preds.get(m.id) %}
+      {% set sett = settled_map.get(m.id) %}
+
+      <div class="match-card {{ state }}" data-match-id="{{ m.id }}" data-kickoff="{{ m.kickoff_utc }}">
+        <div class="match-inner">
+
+          <div class="match-meta">
+            <span class="stage-badge">{{ m.stage | replace('_',' ') }}{% if m.group_label %} · {{ m.group_label }}{% endif %}</span>
+            <span class="kickoff-time" data-utc="{{ m.kickoff_utc }}">{{ m.kickoff_utc }}</span>
+          </div>
+
+          <div class="match-body">
+            <!-- Home team -->
+            <div class="team home" data-name="{{ m.home_team }}">
+              <span class="team-name-text">{{ m.home_team }}</span>
+            </div>
+
+            <!-- Centre: scores / inputs -->
+            <div class="score-inputs">
+              {% if m.settled %}
+                <div class="score-col">
+                  <div class="final-score">{{ m.home_score }} – {{ m.away_score }}</div>
+                  {% if sett %}
+                    <div class="pts-badge">+{{ sett.total_points }}pts</div>
+                    {% if sett.bonus_labels %}<div class="bonuses">{{ sett.bonus_labels }}</div>{% endif %}
+                  {% endif %}
+                  {% if pred %}
+                    <div class="your-pick-label">
+                      Your pick: {{ pred.home_pred }}–{{ pred.away_pred }}
+                      {% if not sett %}<span class="muted"> · 0pts</span>{% endif %}
+                    </div>
+                  {% else %}
+                    <div class="your-pick-label muted">No prediction</div>
+                  {% endif %}
+                </div>
+
+              {% elif is_open %}
+                <input type="number" class="score-input home-pred" data-match="{{ m.id }}"
+                       min="0" max="15" value="{{ pred.home_pred if pred is not none else '' }}" placeholder="0">
+                <span class="vs">–</span>
+                <input type="number" class="score-input away-pred" data-match="{{ m.id }}"
+                       min="0" max="15" value="{{ pred.away_pred if pred is not none else '' }}" placeholder="0">
+                <div class="save-col">
+                  <button class="save-btn" data-match="{{ m.id }}">Save</button>
+                  <div class="save-status" id="status-{{ m.id }}"></div>
+                </div>
+
+              {% else %}
+                <div class="score-col">
+                  {% if pred %}
+                    <div class="locked-pred">{{ pred.home_pred }} – {{ pred.away_pred }}</div>
+                    <div class="your-pick-label muted">Awaiting result</div>
+                  {% else %}
+                    <div class="locked-pred muted">— —</div>
+                    <div class="your-pick-label muted">No prediction</div>
+                  {% endif %}
+                </div>
+              {% endif %}
+            </div>
+
+            <!-- Away team -->
+            <div class="team away" data-name="{{ m.away_team }}">
+              <span class="team-name-text">{{ m.away_team }}</span>
+            </div>
+          </div>
         </div>
 
-        <div class="score-inputs">
+        <div class="match-footer">
           {% if m.settled %}
-            {% set sett = settled_map.get(m.id) %}
-            {% set pred = preds.get(m.id) %}
-            <div class="final-score">{{ m.home_score }} – {{ m.away_score }}</div>
-            {% if sett %}
-              <div class="points-earned">
-                <span class="pts">+{{ sett.total_points }}</span>
-                {% if sett.bonus_labels %}<span class="bonuses">{{ sett.bonus_labels }}</span>{% endif %}
-              </div>
-            {% elif pred %}
-              <div class="your-pred muted">{{ pred.home_pred }}–{{ pred.away_pred }}</div>
-            {% else %}
-              <div class="no-pred muted">—</div>
-            {% endif %}
-
+            <span class="chip settled-chip">SETTLED</span>
           {% elif is_open %}
-            {% set pred = preds.get(m.id) %}
-            <input type="number" class="score-input home-pred" data-match="{{ m.id }}"
-                   min="0" max="15" value="{{ pred.home_pred if pred is not none else '' }}" placeholder="0">
-            <span class="vs">–</span>
-            <input type="number" class="score-input away-pred" data-match="{{ m.id }}"
-                   min="0" max="15" value="{{ pred.away_pred if pred is not none else '' }}" placeholder="0">
-            <button class="save-btn" data-match="{{ m.id }}">Save</button>
-            <div class="save-status" id="status-{{ m.id }}"></div>
-
+            <span class="chip open-chip">OPEN</span>
+            <span class="lock-countdown" data-kickoff="{{ m.kickoff_utc }}"></span>
           {% else %}
-            {% set pred = preds.get(m.id) %}
-            {% if pred %}
-              <div class="locked-pred">{{ pred.home_pred }} – {{ pred.away_pred }}</div>
-            {% else %}
-              <div class="locked-pred muted">— —</div>
-            {% endif %}
+            <span class="chip locked-chip">LOCKED</span>
           {% endif %}
         </div>
-
-        <div class="team away" data-name="{{ m.away_team }}">
-          <span class="team-name-text">{{ m.away_team }}</span>
-        </div>
       </div>
-    </div>
-
-    <div class="match-footer">
-      {% if m.settled %}
-        <span class="chip settled-chip">SETTLED</span>
-      {% elif is_open %}
-        <span class="chip open-chip">OPEN</span>
-        <span class="lock-countdown" data-kickoff="{{ m.kickoff_utc }}"></span>
-      {% else %}
-        <span class="chip locked-chip">LOCKED</span>
-      {% endif %}
-    </div>
+    {% endfor %}
   </div>
 {% else %}
-  <p class="hint">No matches yet — run <code>scripts/seed_fixtures.py</code> first.</p>
+  <p class="hint" style="margin-top:24px">No matches yet.</p>
 {% endfor %}
-</div>
+
+<script>
+const TODAY = "{{ today }}";
+const ALL_DATES = {{ dates | tojson }};
+
+function selectDate(date) {
+  document.querySelectorAll('.date-section').forEach(s => s.style.display = 'none');
+  document.querySelectorAll('.date-tab').forEach(t => t.classList.remove('active'));
+  const section = document.getElementById('date-' + date);
+  if (section) section.style.display = '';
+  const tab = document.getElementById('tab-' + date);
+  if (tab) {
+    tab.classList.add('active');
+    tab.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+  }
+  sessionStorage.setItem('wc_date', date);
+}
+
+document.querySelectorAll('.date-tab').forEach(tab => {
+  tab.addEventListener('click', () => selectDate(tab.dataset.date));
+});
+
+// Default: today or nearest upcoming date
+const saved = sessionStorage.getItem('wc_date');
+let target = saved && ALL_DATES.includes(saved) ? saved : null;
+if (!target) target = ALL_DATES.find(d => d >= TODAY) || ALL_DATES[ALL_DATES.length - 1];
+if (target) selectDate(target);
+</script>
 {% endblock %}

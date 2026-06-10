@@ -294,6 +294,157 @@ select { appearance: none; cursor: pointer; }
 }
 .picks-card { max-width: 440px; }
 
+/* ── My Stats Bar ── */
+.my-stats-bar {
+  display: flex;
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border-glow);
+  border-radius: var(--radius);
+  padding: 14px 20px;
+  margin-bottom: 18px;
+  gap: 0;
+}
+.my-stat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.my-stat-val {
+  font-size: 1.5rem;
+  font-weight: 900;
+  background: linear-gradient(135deg, var(--gold-bright), var(--green));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.my-stat-label {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--muted);
+  font-weight: 600;
+}
+.my-stat-divider {
+  width: 1px;
+  height: 36px;
+  background: var(--border);
+}
+
+/* ── Date Tabs ── */
+.date-tabs-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  margin-bottom: 16px;
+  margin-left: -12px;
+  margin-right: -12px;
+  padding: 0 12px;
+}
+.date-tabs-wrap::-webkit-scrollbar { display: none; }
+.date-tabs {
+  display: flex;
+  gap: 8px;
+  width: max-content;
+  padding-bottom: 4px;
+}
+.date-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 14px;
+  cursor: pointer;
+  transition: all .15s;
+  min-width: 74px;
+  font-family: var(--font);
+}
+.date-tab:hover { border-color: var(--border-glow); background: var(--surface2); }
+.date-tab.active {
+  background: linear-gradient(135deg, rgba(245,158,11,0.15), rgba(245,158,11,0.05));
+  border-color: var(--gold);
+  box-shadow: 0 0 16px rgba(245,158,11,0.15);
+}
+.dt-label {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+}
+.dt-games {
+  font-size: 0.68rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.dt-pts {
+  font-size: 0.68rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+.dt-pts-good { color: var(--green); }
+.dt-open {
+  font-size: 0.65rem;
+  color: var(--green);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+.dt-locked {
+  font-size: 0.65rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+
+/* ── Day Summary ── */
+.day-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 4px;
+  margin-bottom: 8px;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.day-pts {
+  font-weight: 700;
+  color: var(--green);
+}
+
+/* ── Score column (for settled/locked centre) ── */
+.score-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  min-width: 90px;
+}
+.pts-badge {
+  font-size: 1rem;
+  font-weight: 900;
+  background: linear-gradient(135deg, var(--gold-bright), var(--green));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.your-pick-label {
+  font-size: 0.72rem;
+  color: var(--muted);
+  text-align: center;
+  white-space: nowrap;
+}
+.save-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
 /* ── Match Date Header ── */
 .date-header {
   font-size: 0.78rem;
