@@ -2,8 +2,11 @@
 {% block title %}Login — WC 2026{% endblock %}
 {% block content %}
 <div class="auth-card">
-  <h1>⚽ WC 2026 Predictor</h1>
-  <p class="subtitle">Log in to your team</p>
+  <div class="auth-hero">
+    <span class="ball">⚽</span>
+    <h1>WC 2026 Predictor</h1>
+    <p>Log in to your team</p>
+  </div>
   <form method="post">
     <label>Team Name
       <input type="text" name="team_name" autocomplete="username" autofocus required>
@@ -11,8 +14,8 @@
     <label>PIN
       <input type="password" name="pin" inputmode="numeric" pattern="\d{4}" maxlength="4" placeholder="4 digits" required>
     </label>
-    <button type="submit" class="btn-primary">Log In</button>
+    <button type="submit" class="btn-primary">Log In →</button>
   </form>
-  <p class="auth-switch">No account? <a href="{{ url_for('signup') }}">Sign up</a></p>
+  <p class="auth-switch">No account? <a href="{{ url_for('signup') }}">Sign up free</a></p>
 </div>
 {% endblock %}

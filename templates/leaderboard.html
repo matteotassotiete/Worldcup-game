@@ -1,14 +1,12 @@
 {% extends "base.html" %}
 {% block title %}Leaderboard — WC 2026{% endblock %}
 {% block content %}
-<h2>Leaderboard</h2>
+<h2>🏆 Leaderboard</h2>
 
 <div class="tab-bar">
-  <a href="?group=everyone"
-     class="tab {% if selected_group=='everyone' %}active{% endif %}">Everyone</a>
+  <a href="?group=everyone" class="tab {% if selected_group=='everyone' %}active{% endif %}">🌍 Everyone</a>
   {% for g in user_groups %}
-  <a href="?group={{ g.id }}"
-     class="tab {% if selected_group==g.id|string %}active{% endif %}">{{ g.name }}</a>
+  <a href="?group={{ g.id }}" class="tab {% if selected_group==g.id|string %}active{% endif %}">{{ g.name }}</a>
   {% endfor %}
 </div>
 
@@ -24,15 +22,21 @@
   </thead>
   <tbody>
   {% for row in standings %}
-    <tr {% if row.id == current_user_id %}class="me"{% endif %}>
-      <td class="rank">{{ loop.index }}</td>
+    {% set rank = loop.index %}
+    <tr class="rank-{{ rank }} {% if row.id == current_user_id %}me{% endif %}">
+      <td class="rank">
+        {% if rank == 1 %}<span class="rank-medal">🥇</span>
+        {% elif rank == 2 %}<span class="rank-medal">🥈</span>
+        {% elif rank == 3 %}<span class="rank-medal">🥉</span>
+        {% else %}{{ rank }}{% endif %}
+      </td>
       <td class="team-name">{{ row.team_name }}</td>
       <td class="points">{{ row.total_points }}</td>
       <td class="exacts">{{ row.exacts }}</td>
       <td class="preds">{{ row.predictions_made }}</td>
     </tr>
   {% else %}
-    <tr><td colspan="5" class="hint">No data yet.</td></tr>
+    <tr><td colspan="5" class="hint" style="padding:20px;text-align:center">No data yet — be the first to predict!</td></tr>
   {% endfor %}
   </tbody>
 </table>
