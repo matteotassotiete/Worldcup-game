@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Groups — WC 2026{% endblock %}
+{% block content %}
+<h2>Groups</h2>
+
+{% if created_code %}
+<div class="code-reveal">
+  <p>Group <strong>{{ created_name }}</strong> created!</p>
+  <div class="big-code" id="group-code">{{ created_code }}</div>
+  <button class="btn-secondary" onclick="copyCode()">Tap to copy</button>
+  <p class="hint">Share this code with your group chat.</p>
+</div>
+<script>
+function copyCode() {
+  navigator.clipboard.writeText("{{ created_code }}").then(() => {
+    document.querySelector('.btn-secondary').textContent = "Copied!";
+  });
+}
+</script>
+{% endif %}
+
+<div class="two-col">
+  <section class="card">
+    <h3>Create a Group</h3>
+    <form method="post">
+      <input type="hidden" name="action" value="create">
+      <label>Group Name
+        <input type="text" name="group_name" required maxlength="60" placeholder="e.g. Office League">
+      </label>
+      <button type="submit" class="btn-primary">Create</button>
+    </form>
+  </section>
+
+  <section class="card">
+    <h3>Join a Group</h3>
+    <form method="post">
+      <input type="hidden" name="action" value="join">
+      <label>6-letter Code
+        <input type="text" name="code" required maxlength="6" placeholder="e.g. XKCD42"
+               style="text-transform:uppercase;letter-spacing:.15em">
+      </label>
+      <button type="submit" class="btn-primary">Join</button>
+    </form>
+  </section>
+</div>
+{% endblock %}

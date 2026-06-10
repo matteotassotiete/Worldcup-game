@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Tournament Picks — WC 2026{% endblock %}
+{% block content %}
+<h2>Tournament Picks</h2>
+{% if locked %}
+<div class="lock-banner">🔒 Tournament has started — picks are locked.</div>
+{% else %}
+<p class="hint">Locks when the first match kicks off.</p>
+{% endif %}
+
+<div class="card picks-card">
+  <form method="post">
+    <label>Champion (+250 pts if correct)
+      <select name="champion_pick" {% if locked %}disabled{% endif %}>
+        <option value="">— not set —</option>
+        {% for t in teams %}
+        <option value="{{ t }}" {% if user.champion_pick==t %}selected{% endif %}>{{ t }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Top Scorer (+150 pts if correct)
+      <input type="text" name="top_scorer_pick" value="{{ user.top_scorer_pick or '' }}"
+             placeholder="Player name" maxlength="60" {% if locked %}readonly{% endif %}>
+    </label>
+    {% if not locked %}
+    <button type="submit" class="btn-primary">Save Picks</button>
+    {% endif %}
+  </form>
+</div>
+{% endblock %}

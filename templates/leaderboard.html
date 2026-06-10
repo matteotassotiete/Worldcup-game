@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Leaderboard — WC 2026{% endblock %}
+{% block content %}
+<h2>Leaderboard</h2>
+
+<div class="tab-bar">
+  <a href="?group=everyone"
+     class="tab {% if selected_group=='everyone' %}active{% endif %}">Everyone</a>
+  {% for g in user_groups %}
+  <a href="?group={{ g.id }}"
+     class="tab {% if selected_group==g.id|string %}active{% endif %}">{{ g.name }}</a>
+  {% endfor %}
+</div>
+
+<table class="standings">
+  <thead>
+    <tr>
+      <th>#</th>
+      <th>Team</th>
+      <th>Pts</th>
+      <th>Exact</th>
+      <th>Preds</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for row in standings %}
+    <tr {% if row.id == current_user_id %}class="me"{% endif %}>
+      <td class="rank">{{ loop.index }}</td>
+      <td class="team-name">{{ row.team_name }}</td>
+      <td class="points">{{ row.total_points }}</td>
+      <td class="exacts">{{ row.exacts }}</td>
+      <td class="preds">{{ row.predictions_made }}</td>
+    </tr>
+  {% else %}
+    <tr><td colspan="5" class="hint">No data yet.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

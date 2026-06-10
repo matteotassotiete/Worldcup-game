@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Predict — WC 2026{% endblock %}
+{% block content %}
+<h2>Predictions</h2>
+<div id="match-list">
+{% for m in matches %}
+  {% set is_open = open_map[m.id] %}
+  {% set state = 'settled' if m.settled else ('open' if is_open else 'locked') %}
+  <div class="match-card {{ state }}"
+       data-match-id="{{ m.id }}"
+       data-kickoff="{{ m.kickoff_utc }}">
+    <div class="match-meta">
+      <span class="stage-badge">{{ m.stage | replace('_', ' ') }}{% if m.group_label %} · {{ m.group_label }}{% endif %}</span>
+      <span class="kickoff-time" data-utc="{{ m.kickoff_utc }}">{{ m.kickoff_utc }}</span>
+    </div>
+    <div class="match-body">
+      <div class="team home">{{ m.home_team }}</div>
+      <div class="score-inputs">
+        {% if m.settled %}
+          <div class="final-score">{{ m.home_score }} – {{ m.away_score }}</div>
+          {% set pred = preds.get(m.id) %}
+          {% set sett = settled_map.get(m.id) %}
+          {% if sett %}
+            <div class="points-earned">
+              <span class="pts">+{{ sett.total_points }}</span>
+              {% if sett.bonus_labels %}
+                <span class="bonuses">{{ sett.bonus_labels }}</span>
+              {% endif %}
+            </div>
+          {% elif pred %}
+            <div class="your-pred muted">You: {{ pred.home_pred }}–{{ pred.away_pred }} · 0 pts</div>
+          {% else %}
+            <div class="no-pred muted">No prediction</div>
+          {% endif %}
+        {% elif is_open %}
+          {% set pred = preds.get(m.id) %}
+          <input type="number" class="score-input home-pred"
+                 data-match="{{ m.id }}" min="0" max="15"
+                 value="{{ pred.home_pred if pred is not none else '' }}" placeholder="0">
+          <span class="vs">–</span>
+          <input type="number" class="score-input away-pred"
+                 data-match="{{ m.id }}" min="0" max="15"
+                 value="{{ pred.away_pred if pred is not none else '' }}" placeholder="0">
+          <button class="save-btn" data-match="{{ m.id }}">Save</button>
+          <div class="save-status" id="status-{{ m.id }}"></div>
+        {% else %}
+          {% set pred = preds.get(m.id) %}
+          {% if pred %}
+            <div class="locked-pred">{{ pred.home_pred }} – {{ pred.away_pred }}</div>
+          {% else %}
+            <div class="locked-pred muted">— —</div>
+          {% endif %}
+        {% endif %}
+      </div>
+      <div class="team away">{{ m.away_team }}</div>
+    </div>
+    {% if not m.settled and is_open %}
+    <div class="match-footer">
+      <span class="chip open-chip">OPEN</span>
+      <span class="lock-countdown" data-kickoff="{{ m.kickoff_utc }}"></span>
+    </div>
+    {% elif not m.settled and not is_open %}
+    <div class="match-footer">
+      <span class="chip locked-chip">LOCKED</span>
+    </div>
+    {% else %}
+    <div class="match-footer">
+      <span class="chip settled-chip">SETTLED</span>
+    </div>
+    {% endif %}
+  </div>
+{% else %}
+  <p class="hint">No matches loaded yet. Run <code>scripts/seed_fixtures.py</code> first.</p>
+{% endfor %}
+</div>
+{% endblock %}

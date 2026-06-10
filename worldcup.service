@@ -1,0 +1,15 @@
+[Unit]
+Description=World Cup 2026 Prediction Game
+After=network.target
+
+[Service]
+Type=simple
+User=claude
+WorkingDirectory=/home/claude/worldcup-game
+EnvironmentFile=/home/claude/worldcup-game/.env
+ExecStart=/usr/bin/gunicorn app:app --bind 0.0.0.0:8000 --workers 2 --timeout 30 --access-logfile logs/access.log --error-logfile logs/error.log
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
