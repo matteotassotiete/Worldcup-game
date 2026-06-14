@@ -364,7 +364,11 @@ def leaderboard():
                     + COALESCE(MAX(ta.champion_points), 0)
                     + COALESCE(MAX(ta.top_scorer_points), 0) AS total_points,
                     COUNT(CASE WHEN s.base_points=100 THEN 1 END) AS exacts,
-                    COUNT(p.id) AS predictions_made
+                    COUNT(p.id) AS predictions_made,
+                    COUNT(s.id) AS settled_preds,
+                    CASE WHEN COUNT(s.id) > 0
+                         THEN ROUND(CAST(COALESCE(SUM(s.total_points), 0) AS NUMERIC) / COUNT(s.id), 1)
+                         ELSE NULL END AS pts_per_pred
                 FROM users u
                 JOIN group_members gm ON gm.user_id=u.id AND gm.group_id=%s
                 LEFT JOIN predictions p ON p.user_id=u.id
@@ -380,7 +384,11 @@ def leaderboard():
                     + COALESCE(MAX(ta.champion_points), 0)
                     + COALESCE(MAX(ta.top_scorer_points), 0) AS total_points,
                     COUNT(CASE WHEN s.base_points=100 THEN 1 END) AS exacts,
-                    COUNT(p.id) AS predictions_made
+                    COUNT(p.id) AS predictions_made,
+                    COUNT(s.id) AS settled_preds,
+                    CASE WHEN COUNT(s.id) > 0
+                         THEN ROUND(CAST(COALESCE(SUM(s.total_points), 0) AS NUMERIC) / COUNT(s.id), 1)
+                         ELSE NULL END AS pts_per_pred
                 FROM users u
                 LEFT JOIN predictions p ON p.user_id=u.id
                 LEFT JOIN settlements s ON s.prediction_id=p.id

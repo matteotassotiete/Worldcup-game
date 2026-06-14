@@ -25,7 +25,7 @@
       <th>Team</th>
       <th>Pts</th>
       <th>Exact</th>
-      <th>Preds</th>
+      <th>Pts/Pred</th>
     </tr>
   </thead>
   <tbody>
@@ -47,7 +47,7 @@
       </td>
       <td class="points">{{ row.total_points }}</td>
       <td class="exacts">{{ row.exacts }}</td>
-      <td class="preds">{{ row.predictions_made }}</td>
+      <td class="preds">{{ row.pts_per_pred if row.pts_per_pred is not none else "—" }}</td>
     </tr>
   {% else %}
     <tr><td colspan="5" class="hint" style="padding:20px;text-align:center">No data yet — be the first to predict!</td></tr>
