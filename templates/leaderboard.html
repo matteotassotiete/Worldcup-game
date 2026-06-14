@@ -38,7 +38,13 @@
         {% elif rank == 3 %}<span class="rank-medal">🥉</span>
         {% else %}{{ rank }}{% endif %}
       </td>
-      <td class="team-name">{{ row.team_name }}</td>
+      <td class="team-name">
+        {% if row.id == current_user_id %}
+          {{ row.team_name }}
+        {% else %}
+          <a href="{{ url_for('team_profile', team_user_id=row.id) }}" class="team-link">{{ row.team_name }}</a>
+        {% endif %}
+      </td>
       <td class="points">{{ row.total_points }}</td>
       <td class="exacts">{{ row.exacts }}</td>
       <td class="preds">{{ row.predictions_made }}</td>

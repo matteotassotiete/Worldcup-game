@@ -408,6 +408,63 @@ def leaderboard():
                            current_user_id=user_id)
 
 
+@app.route("/team/<int:team_user_id>")
+@login_required
+def team_profile(team_user_id):
+    from collections import defaultdict
+    db = get_request_db()
+
+    team = db.execute("SELECT id, team_name FROM users WHERE id=%s", (team_user_id,)).fetchone()
+    if not team:
+        flash("Team not found.")
+        return redirect(url_for("leaderboard"))
+
+    # Only settled matches — never reveal future predictions
+    matches = db.execute(
+        "SELECT * FROM matches WHERE settled=1 ORDER BY kickoff_utc"
+    ).fetchall()
+
+    if not matches:
+        return render_template("team.html", team=team, by_date={}, dates=[], total_pts=0, exacts=0)
+
+    match_ids = [m["id"] for m in matches]
+    placeholders = ",".join(["%s"] * len(match_ids))
+
+    preds = {row["match_id"]: row for row in db.execute(
+        f"SELECT * FROM predictions WHERE user_id=%s AND match_id IN ({placeholders})",
+        [team_user_id] + match_ids
+    ).fetchall()}
+
+    settled_map = {}
+    if preds:
+        pred_ids = list(preds.keys())
+        ph2 = ",".join(["%s"] * len(pred_ids))
+        for row in db.execute(
+            f"SELECT s.*, p.match_id FROM settlements s "
+            f"JOIN predictions p ON p.id=s.prediction_id "
+            f"WHERE p.user_id=%s AND p.match_id IN ({ph2})",
+            [team_user_id] + pred_ids
+        ).fetchall():
+            settled_map[row["match_id"]] = row
+
+    by_date = defaultdict(list)
+    for m in matches:
+        by_date[utc_to_local_date(m["kickoff_utc"])].append(m)
+    dates = sorted(by_date.keys())
+
+    total_pts = sum(s["total_points"] for s in settled_map.values())
+    exacts = sum(1 for s in settled_map.values() if s["base_points"] == 100)
+
+    return render_template("team.html",
+                           team=team,
+                           by_date=by_date,
+                           dates=dates,
+                           preds=preds,
+                           settled_map=settled_map,
+                           total_pts=total_pts,
+                           exacts=exacts)
+
+
 # ── Init ──────────────────────────────────────────────────────────────────────
 
 with app.app_context():

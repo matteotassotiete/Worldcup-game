@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}{{ team.team_name }} — WC 2026{% endblock %}
+{% block content %}
+
+<div class="team-profile-header">
+  <a href="{{ url_for('leaderboard') }}" class="back-link">← Standings</a>
+  <h2>{{ team.team_name }}</h2>
+  <p class="team-profile-subtitle">Settled predictions only</p>
+</div>
+
+<div class="my-stats-bar">
+  <div class="my-stat">
+    <span class="my-stat-val">{{ total_pts }}</span>
+    <span class="my-stat-label">Points</span>
+  </div>
+  <div class="my-stat-divider"></div>
+  <div class="my-stat">
+    <span class="my-stat-val">{{ exacts }}</span>
+    <span class="my-stat-label">Exact Scores</span>
+  </div>
+  <div class="my-stat-divider"></div>
+  <div class="my-stat">
+    <span class="my-stat-val">{{ preds|length }}</span>
+    <span class="my-stat-label">Predictions</span>
+  </div>
+</div>
+
+{% if not dates %}
+  <p class="hint" style="margin-top:32px;text-align:center">No settled matches yet — check back after games kick off.</p>
+{% else %}
+  {% for date in dates %}
+    {% set month = date[5:7]|int %}
+    {% set day = date[8:10]|int %}
+    {% set month_names = {6:'Jun',7:'Jul'} %}
+    <div class="team-date-group">
+      <div class="team-date-heading">{{ month_names.get(month, 'Jun') }} {{ day }}</div>
+
+      {% for m in by_date[date] %}
+        {% set pred = preds.get(m.id) %}
+        {% set sett = settled_map.get(m.id) %}
+        <div class="match-card settled">
+          <div class="match-inner">
+
+            <div class="match-meta">
+              <span class="stage-badge">{{ m.stage | replace('_',' ') }}{% if m.group_label %} · {{ m.group_label }}{% endif %}</span>
+              <span class="kickoff-time" data-utc="{{ m.kickoff_utc }}">{{ m.kickoff_utc }}</span>
+            </div>
+
+            <div class="match-teams">
+              <div class="team home" data-name="{{ m.home_team }}">
+                <span class="team-name-text">{{ m.home_team }}</span>
+              </div>
+              <span class="match-vs">vs</span>
+              <div class="team away" data-name="{{ m.away_team }}">
+                <span class="team-name-text">{{ m.away_team }}</span>
+              </div>
+            </div>
+
+            <div class="match-action-row">
+              <div class="action-left"></div>
+              <div class="action-center">
+                <div class="final-score">{{ m.home_score }} – {{ m.away_score }}</div>
+                {% if sett %}
+                  <div class="pts-badge">+{{ sett.total_points }}pts</div>
+                  {% if sett.bonus_labels %}<div class="bonuses">{{ sett.bonus_labels }}</div>{% endif %}
+                {% endif %}
+                {% if pred %}
+                  <div class="your-pick-label">Their pick: {{ pred.home_pred }}–{{ pred.away_pred }}{% if not sett %} · 0pts{% endif %}</div>
+                {% else %}
+                  <div class="your-pick-label muted">No prediction</div>
+                {% endif %}
+              </div>
+              <div class="action-right"></div>
+            </div>
+          </div>
+
+          <div class="match-footer">
+            <span class="chip settled-chip">SETTLED</span>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% endfor %}
+{% endif %}
+
+<script>
+document.querySelectorAll('.kickoff-time[data-utc]').forEach(el => {
+  const d = new Date(el.dataset.utc);
+  if (!isNaN(d)) el.textContent = d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+});
+</script>
+{% endblock %}
