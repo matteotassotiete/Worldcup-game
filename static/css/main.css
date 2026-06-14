@@ -878,6 +878,7 @@ select { appearance: none; cursor: pointer; }
   padding: 14px 16px;
   border-left-width: 4px;
 }
+.tier-125 { border-left-color: #f472b6; }
 .tier-100 { border-left-color: var(--gold); }
 .tier-70  { border-left-color: #a78bfa; }
 .tier-50  { border-left-color: var(--blue); }
@@ -889,6 +890,7 @@ select { appearance: none; cursor: pointer; }
   font-weight: 900;
   line-height: 1;
 }
+.tier-125 .tier-pts { color: #f472b6; }
 .tier-100 .tier-pts { color: var(--gold); }
 .tier-70  .tier-pts { color: #a78bfa; }
 .tier-50  .tier-pts { color: var(--blue); }

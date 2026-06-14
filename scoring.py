@@ -19,7 +19,8 @@ def score_prediction(hp, ap, ha, aa) -> dict:
 
     # Base tiers — first match wins
     if hp == ha and ap == aa:
-        base = 100
+        # Immaculate Predict: exact score on a 5+ goal game
+        base = 125 if hp + ap >= 5 else 100
     elif pred_result == actual_result and pred_margin == actual_margin:
         base = 60
     elif pred_result == actual_result:
@@ -46,6 +47,11 @@ def score_prediction(hp, ap, ha, aa) -> dict:
             elif hp == 0 and ha == 0:
                 bonus += 5
                 bonus_labels.append("Clean Sheet Caller")
+
+        # +5 One Away: total goal error is exactly 1 and got the right result
+        if pred_result == actual_result and abs(hp - ha) + abs(ap - aa) == 1:
+            bonus += 5
+            bonus_labels.append("One Away")
 
     return {
         "base": base,
