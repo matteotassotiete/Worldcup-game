@@ -93,7 +93,7 @@ def generate_group_code():
 
 def prediction_is_open(kickoff_utc_str):
     kickoff = datetime.fromisoformat(kickoff_utc_str.replace("Z", "+00:00"))
-    return datetime.now(timezone.utc) < kickoff - timedelta(hours=1)
+    return datetime.now(timezone.utc) < kickoff - timedelta(minutes=10)
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────

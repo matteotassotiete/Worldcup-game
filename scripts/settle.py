@@ -3,9 +3,9 @@
 Pull finished matches, write scores, score all predictions. Idempotent.
 Cron: */30 * * * * cd /home/claude/worldcup-game && /usr/bin/python3 scripts/settle.py >> logs/settle.log 2>&1
 
-Only settles matches that kicked off at least 3 hours ago, so we never
+Only settles matches that kicked off at least 2 hours ago, so we never
 touch a game that might still be in progress. With the 30-min cron, scores
-appear within 30 minutes of the 3-hour mark post-kickoff.
+appear within ~30 minutes of the game ending.
 """
 import os
 import sys
@@ -23,7 +23,7 @@ TOKEN = os.environ["FOOTBALL_DATA_TOKEN"]
 API_BASE = "https://api.football-data.org/v4"
 HEADERS = {"X-Auth-Token": TOKEN}
 
-SETTLE_AFTER_HOURS = 3
+SETTLE_AFTER_HOURS = 2.5
 
 
 def fetch_finished():
@@ -98,7 +98,7 @@ def main():
         total_scored += n
 
     if skipped:
-        print(f"  Skipped {skipped} match(es) — kicked off less than {SETTLE_AFTER_HOURS}h ago")
+        print(f"  Skipped {skipped} match(es) — kicked off less than {SETTLE_AFTER_HOURS}h ago (may still be in progress)")
     db.commit()
     print(f"  Predictions scored this run: {total_scored}")
     db.close()
