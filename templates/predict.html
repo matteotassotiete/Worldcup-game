@@ -131,6 +131,7 @@
         <div class="match-footer">
           {% if m.settled %}
             <span class="chip settled-chip">SETTLED</span>
+            <span class="see-picks-hint">Tap to see all picks →</span>
           {% elif is_open %}
             <span class="chip open-chip">OPEN</span>
             <span class="lock-countdown" data-kickoff="{{ m.kickoff_utc }}"></span>
@@ -144,6 +145,21 @@
 {% else %}
   <p class="hint" style="margin-top:24px">No matches yet.</p>
 {% endfor %}
+
+<!-- Predictions Sheet Modal -->
+<div id="preds-overlay" class="preds-overlay" onclick="if(event.target===this)closePredsModal()">
+  <div class="preds-sheet">
+    <div class="preds-drag-handle"></div>
+    <div class="preds-sheet-header">
+      <div class="preds-match-info">
+        <div id="preds-teams" class="preds-teams"></div>
+        <div id="preds-score" class="preds-final-score"></div>
+      </div>
+      <button class="preds-close-btn" onclick="closePredsModal()">✕</button>
+    </div>
+    <div id="preds-list" class="preds-list"></div>
+  </div>
+</div>
 
 <script>
 const TODAY = "{{ today }}";
@@ -171,5 +187,65 @@ const saved = sessionStorage.getItem('wc_date');
 let target = saved && ALL_DATES.includes(saved) ? saved : null;
 if (!target) target = ALL_DATES.find(d => d >= TODAY) || ALL_DATES[ALL_DATES.length - 1];
 if (target) selectDate(target);
+
+// ── Settled card → predictions modal ─────────────────────────────────────────
+document.addEventListener('click', e => {
+  const card = e.target.closest('.match-card.settled');
+  if (card) openPredsModal(card.dataset.matchId);
+});
+
+async function openPredsModal(matchId) {
+  const overlay = document.getElementById('preds-overlay');
+  const list = document.getElementById('preds-list');
+  list.innerHTML = '<div class="preds-loading">Loading…</div>';
+  overlay.classList.add('open');
+  document.body.style.overflow = 'hidden';
+
+  try {
+    const res = await fetch(`/api/match/${matchId}/predictions`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+
+    const m = data.match;
+    document.getElementById('preds-teams').innerHTML =
+      `${flagImg(m.home_team)}<span>${m.home_team}</span><span class="preds-vs">vs</span>${flagImg(m.away_team)}<span>${m.away_team}</span>`;
+    document.getElementById('preds-score').textContent = `${m.home_score} – ${m.away_score}`;
+
+    if (!data.predictions.length) {
+      list.innerHTML = '<div class="preds-empty">No predictions were made for this match.</div>';
+      return;
+    }
+
+    const medals = ['🥇', '🥈', '🥉'];
+    let html = '';
+    let prevPts = null;
+    let displayRank = 0;
+    let actualIdx = 0;
+
+    data.predictions.forEach((p, i) => {
+      if (p.total_points !== prevPts) { displayRank = i + 1; prevPts = p.total_points; }
+      const isMe = p.user_id === data.current_user_id;
+      const medal = medals[displayRank - 1] || displayRank;
+      const ptsClass = p.base_points === 100 ? 'ppx-exact' : p.total_points >= 50 ? 'ppx-good' : p.total_points > 0 ? 'ppx-some' : 'ppx-zero';
+
+      html += `<div class="pred-row${isMe ? ' pred-row-me' : ''}">
+        <span class="pred-rank">${medal}</span>
+        <span class="pred-team">${p.team_name}${isMe ? '<span class="pred-you">you</span>' : ''}</span>
+        <span class="pred-pick">${p.home_pred}–${p.away_pred}</span>
+        <span class="pred-pts ${ptsClass}">+${p.total_points}pts</span>
+      </div>`;
+    });
+    list.innerHTML = html;
+  } catch (err) {
+    list.innerHTML = `<div class="preds-empty">Failed to load: ${err.message}</div>`;
+  }
+}
+
+function closePredsModal() {
+  document.getElementById('preds-overlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closePredsModal(); });
 </script>
 {% endblock %}

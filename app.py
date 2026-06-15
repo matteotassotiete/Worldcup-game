@@ -473,6 +473,41 @@ def team_profile(team_user_id):
                            exacts=exacts)
 
 
+@app.route("/api/match/<int:match_id>/predictions")
+@login_required
+def match_predictions(match_id):
+    db = get_request_db()
+    match = db.execute(
+        "SELECT * FROM matches WHERE id=%s AND settled=1", (match_id,)
+    ).fetchone()
+    if not match:
+        return jsonify({"error": "Match not found or not settled"}), 404
+
+    rows = db.execute("""
+        SELECT u.id AS user_id, u.team_name,
+               p.home_pred, p.away_pred,
+               COALESCE(s.total_points, 0) AS total_points,
+               COALESCE(s.base_points, 0) AS base_points,
+               COALESCE(s.bonus_labels, '') AS bonus_labels
+        FROM predictions p
+        JOIN users u ON u.id = p.user_id
+        LEFT JOIN settlements s ON s.prediction_id = p.id
+        WHERE p.match_id = %s
+        ORDER BY COALESCE(s.total_points, 0) DESC, u.team_name
+    """, (match_id,)).fetchall()
+
+    return jsonify({
+        "match": {
+            "home_team": match["home_team"],
+            "away_team": match["away_team"],
+            "home_score": match["home_score"],
+            "away_score": match["away_score"],
+        },
+        "predictions": [dict(r) for r in rows],
+        "current_user_id": session["user_id"]
+    })
+
+
 # ── Init ──────────────────────────────────────────────────────────────────────
 
 with app.app_context():
