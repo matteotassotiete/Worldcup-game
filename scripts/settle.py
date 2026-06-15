@@ -2,11 +2,15 @@
 """
 Pull finished matches, write scores, score all predictions. Idempotent.
 Cron: */30 * * * * cd /home/claude/worldcup-game && /usr/bin/python3 scripts/settle.py >> logs/settle.log 2>&1
+
+Only settles matches that kicked off at least 3 hours ago, so we never
+touch a game that might still be in progress. With the 30-min cron, scores
+appear within 30 minutes of the 3-hour mark post-kickoff.
 """
 import os
 import sys
 import requests
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from dotenv import load_dotenv
@@ -18,6 +22,8 @@ from scoring import score_prediction
 TOKEN = os.environ["FOOTBALL_DATA_TOKEN"]
 API_BASE = "https://api.football-data.org/v4"
 HEADERS = {"X-Auth-Token": TOKEN}
+
+SETTLE_AFTER_HOURS = 3
 
 
 def fetch_finished():
@@ -68,18 +74,31 @@ def main():
     ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
     print(f"[{ts}] settle.py starting")
 
+    now = datetime.now(timezone.utc)
+    cutoff = now - timedelta(hours=SETTLE_AFTER_HOURS)
+
     db = get_db()
     matches = fetch_finished()
     print(f"  {len(matches)} finished matches from API")
 
     total_scored = 0
+    skipped = 0
     for m in matches:
+        kickoff_str = m.get("utcDate", "")
+        if kickoff_str:
+            kickoff = datetime.fromisoformat(kickoff_str.replace("Z", "+00:00"))
+            if kickoff > cutoff:
+                skipped += 1
+                continue
+
         hs, as_ = extract_scores(m)
         if hs is None or as_ is None:
             continue
         n = settle_match(db, m["id"], hs, as_)
         total_scored += n
 
+    if skipped:
+        print(f"  Skipped {skipped} match(es) — kicked off less than {SETTLE_AFTER_HOURS}h ago")
     db.commit()
     print(f"  Predictions scored this run: {total_scored}")
     db.close()
