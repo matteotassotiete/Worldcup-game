@@ -17,7 +17,7 @@ const FLAG_MAP = {
   'Ukraine': 'ua', 'Turkey': 'tr', 'Scotland': 'gb-sct', 'Wales': 'gb-wls',
   'Slovakia': 'sk', 'Romania': 'ro', 'New Zealand': 'nz', 'Hungary': 'hu',
   'Slovenia': 'si', 'Albania': 'al', 'North Macedonia': 'mk', 'Montenegro': 'me',
-  'Greece': 'gr', 'Norway': 'se', 'Sweden': 'se', 'Finland': 'fi',
+  'Greece': 'gr', 'Norway': 'no', 'Sweden': 'se', 'Finland': 'fi',
   'Iceland': 'is', 'Israel': 'il', 'Mali': 'ml', 'Guinea': 'gn',
   'DR Congo': 'cd', 'Zambia': 'zm', 'Namibia': 'na', 'Zimbabwe': 'zw',
   'Mozambique': 'mz', 'Tanzania': 'tz', 'Uganda': 'ug', 'Kenya': 'ke',
@@ -114,7 +114,7 @@ function formatCountdown(ms) {
 function updateCountdowns() {
   const now = Date.now();
   document.querySelectorAll('.lock-countdown[data-kickoff]').forEach(el => {
-    const lockTime = new Date(el.dataset.kickoff).getTime() - 3600000;
+    const lockTime = new Date(el.dataset.kickoff).getTime() - 600000;
     const ms = lockTime - now;
     el.textContent = formatCountdown(ms);
     el.classList.toggle('urgent', ms > 0 && ms < 7200000);
