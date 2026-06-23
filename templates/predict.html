@@ -2,6 +2,23 @@
 {% block title %}Predict — WC 2026{% endblock %}
 {% block content %}
 
+<!-- Bracket Game advert banner -->
+{% if bracket_status %}
+<a href="{{ url_for('bracket') }}" class="bracket-banner bracket-banner-{{ bracket_status }}">
+  <span class="bb-icon">🏆</span>
+  <span class="bb-text">
+    {% if bracket_status == 'coming_soon' %}
+      <b>New: Bracket Challenge</b> — predict the whole knockout bracket. Opens Sat Jun 27 (~9 PM PT).
+    {% elif bracket_status == 'open' %}
+      <b>Bracket Challenge is OPEN</b> — fill out your knockout bracket before kickoff locks it!
+    {% else %}
+      <b>Bracket Challenge</b> — it’s locked &amp; being scored. See how you’re doing →
+    {% endif %}
+  </span>
+  <span class="bb-arrow">→</span>
+</a>
+{% endif %}
+
 <!-- My Stats Bar -->
 <div class="my-stats-bar">
   <div class="my-stat">

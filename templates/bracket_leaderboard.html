@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Bracket Standings — WC 2026{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/bracket.css') }}">
+{% endblock %}
+{% block content %}
+<div class="bk-lb-header">
+  <h2>🏆 Bracket Standings</h2>
+  <a href="{{ url_for('bracket') }}" class="bk-lb-back">← My Bracket</a>
+</div>
+
+<div class="tab-bar bk-tab-bar">
+  <a href="?group=everyone" class="tab {% if selected_group=='everyone' %}active{% endif %}">🌍 Everyone</a>
+  {% for g in user_groups %}
+  <a href="?group={{ g.id }}" class="tab {% if selected_group==g.id|string %}active{% endif %}">{{ g.name }}</a>
+  {% endfor %}
+</div>
+
+<table class="standings bk-standings">
+  <thead>
+    <tr>
+      <th>#</th>
+      <th>Team</th>
+      <th>Pts</th>
+      <th>Champ</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for row in standings %}
+    {% set rank = loop.index %}
+    <tr class="rank-{{ rank }} {% if row.id == current_user_id %}me{% endif %}">
+      <td class="rank">
+        {% if rank == 1 %}<span class="rank-medal">🥇</span>
+        {% elif rank == 2 %}<span class="rank-medal">🥈</span>
+        {% elif rank == 3 %}<span class="rank-medal">🥉</span>
+        {% else %}{{ rank }}{% endif %}
+      </td>
+      <td class="team-name">{{ row.team_name }}</td>
+      <td class="points">{{ row.total_points }}<span class="bk-of-max">/{{ grand_max }}</span></td>
+      <td class="bk-champ-cell">{% if row.champion_correct %}✅{% else %}—{% endif %}</td>
+    </tr>
+  {% else %}
+    <tr><td colspan="4" class="hint" style="padding:20px;text-align:center">No brackets filled yet.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+<p class="bk-lb-foot">Ranked by total bracket points · tiebreak: champion correct, then who locked in their bracket earliest.</p>
+{% endblock %}

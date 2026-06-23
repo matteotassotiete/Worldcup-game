@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}Bracket — WC 2026{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/bracket.css') }}">
+{% endblock %}
+{% block content %}
+
+{% if locked %}
+<div class="bk-status-bar bk-locked-bar">
+  <div class="bk-stat"><span class="bk-stat-val">{{ total_pts }}</span><span class="bk-stat-lbl">Bracket Points</span></div>
+  <div class="bk-stat-div"></div>
+  <div class="bk-stat"><span class="bk-stat-val">/ {{ grand_max }}</span><span class="bk-stat-lbl">Max</span></div>
+  <div class="bk-stat-div"></div>
+  <div class="bk-stat"><a href="{{ url_for('bracket_leaderboard') }}" class="bk-lb-link">Standings →</a></div>
+</div>
+<p class="bk-locked-note">🔒 The bracket is locked. Rounds are scored as real results come in.</p>
+{% else %}
+<div class="bk-status-bar">
+  <div class="bk-progress-head">
+    <b>Your Bracket</b>
+    <span id="bk-overall-progress">{{ rounds|sum(attribute='picked_n') }}/31 picked</span>
+  </div>
+  <a href="{{ url_for('bracket_leaderboard') }}" class="bk-lb-link">Standings →</a>
+</div>
+<p class="bk-open-note">Tap a team to advance it — your pick flows into the next round automatically. Edit anytime until the first kickoff. Partial brackets are saved; unpicked slots score 0.</p>
+{% endif %}
+
+<div id="bk-toast" class="bk-toast"></div>
+
+{% for rnd in rounds %}
+<section class="bk-round {% if rnd.key == 'FINAL' %}bk-round-final{% endif %}" data-round="{{ rnd.key }}">
+  <div class="bk-round-head">
+    <h2>{{ rnd.label }}</h2>
+    {% if not locked %}
+      <span class="bk-round-prog" id="bk-prog-{{ rnd.key }}">{{ rnd.picked_n }}/{{ rnd.total_n }}</span>
+    {% elif rnd.key in settlements %}
+      {% set s = settlements[rnd.key if rnd.key != 'FINAL' else 'FINAL'] %}
+    {% endif %}
+    {% set score_round = {'R32':'R16','R16':'QF','QF':'SF','SF':'FINAL','FINAL':'CHAMPION'}[rnd.key] %}
+    {% if locked and score_round in settlements %}
+      {% set s = settlements[score_round] %}
+      <span class="bk-round-score">{{ s.total_points }} pts · {{ s.correct_count }} right</span>
+    {% endif %}
+  </div>
+
+  <div class="bk-matches">
+    {% for m in rnd.matches %}
+    <div class="bk-match {% if rnd.key == 'FINAL' %}bk-match-final{% endif %}" data-mid="{{ m.match_id }}">
+      {% for pos, team in [('home', m.home), ('away', m.away)] %}
+      <button class="bk-team
+                {% if m.picked and m.picked == team %}bk-picked{% endif %}
+                {% if not team %}bk-empty{% endif %}
+                {% if locked and m.picked == team and m.result_known %}{% if m.correct %}bk-correct{% else %}bk-wrong{% endif %}{% endif %}"
+              data-mid="{{ m.match_id }}" data-pos="{{ pos }}"
+              {% if locked or not team %}disabled{% endif %}>
+        <span class="bk-team-name">{{ team or '—' }}</span>
+        {% if locked and m.picked == team and m.result_known %}
+          <span class="bk-mark">{% if m.correct %}✓{% else %}✗{% endif %}</span>
+        {% endif %}
+      </button>
+      {% endfor %}
+    </div>
+    {% endfor %}
+  </div>
+
+  {% if rnd.key == 'FINAL' %}
+    <div class="bk-champion-wrap">
+      <div class="bk-champion-label">🏆 Your Champion</div>
+      <div class="bk-champion-name" id="bk-champion">{{ rounds[-1].matches[0].picked or '—' }}</div>
+    </div>
+  {% endif %}
+</section>
+{% endfor %}
+
+{% endblock %}
+{% block scripts %}
+<script id="bk-data" type="application/json">
+{{ {"picks": picks, "slot_teams": slot_teams, "feeds": feeds,
+    "next_map": next_map, "rounds_map": rounds_map, "locked": locked}|tojson }}
+</script>
+<script src="{{ url_for('static', filename='js/bracket.js') }}"></script>
+{% endblock %}

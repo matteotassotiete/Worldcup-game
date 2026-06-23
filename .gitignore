@@ -1,5 +1,8 @@
 .env
 app.db
+app.db-*
+mock_bracket.db
+mock_bracket.db-*
 logs/
 __pycache__/
 *.pyc

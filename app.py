@@ -20,11 +20,21 @@ load_dotenv()
 
 from db import get_db, init_db
 
+from bracket_skeleton import (ROUNDS, ROUND_ORDER, ROUND_LABELS, FEEDS, NEXT_SLOT,
+                              predicted_sets_from_picks)
+from bracket_core import (get_state, effective_status, is_open_for_writes,
+                          advancing_team, get_bracket_matches, actual_sets,
+                          SCORE_ROUND_SOURCE)
+from bracket_scoring import BRACKET_POINTS, BRACKET_ROUNDS, round_max, grand_total_max
+
 app = Flask(__name__)
 app.secret_key = os.environ["SECRET_KEY"]
 
 # Tournament picks lock: June 11 2026 at 11:00 UTC (8h before first kickoff)
 PICKS_LOCK_UTC = datetime(2026, 6, 11, 11, 0, 0, tzinfo=timezone.utc)
+
+# Admin gate for /admin/bracket. Must be set in .env to use the admin page.
+ADMIN_KEY = os.environ.get("ADMIN_KEY", "")
 
 
 # ── Context processor — inject nav groups into every template ────────────────
@@ -40,7 +50,14 @@ def inject_nav_groups():
             JOIN group_members gm ON gm.group_id=g.id
             WHERE gm.user_id=%s ORDER BY g.name
         """, (session["user_id"],)).fetchall()
-        return {"nav_groups": groups}
+        ctx = {"nav_groups": groups}
+        try:
+            state = get_state(db)
+            ctx["bracket_status"] = effective_status(state)
+            ctx["bracket_open_at"] = state["open_at"]
+        except Exception:
+            ctx["bracket_status"] = None
+        return ctx
     except Exception:
         return {"nav_groups": []}
 
@@ -506,6 +523,293 @@ def match_predictions(match_id):
         "predictions": [dict(r) for r in rows],
         "current_user_id": session["user_id"]
     })
+
+
+# ── Bracket Game ────────────────────────────────────────────────────────────
+
+def _user_bracket_picks(db, user_id):
+    rows = db.execute(
+        "SELECT match_id, picked_team FROM bracket_picks WHERE user_id=%s", (user_id,)
+    ).fetchall()
+    return {r["match_id"]: r["picked_team"] for r in rows}
+
+
+def _compute_slot_teams(matches_by_id, picks):
+    """The two teams shown in each slot. R32 from seeded matchups; later rounds
+    derived from the user's own upstream picks (the predicted bracket)."""
+    slot_teams = {}
+    for mid in ROUNDS["R32"]:
+        m = matches_by_id.get(mid)
+        slot_teams[mid] = [m["home_team"] if m else None,
+                           m["away_team"] if m else None]
+    for rk in ["R16", "QF", "SF", "FINAL"]:
+        for mid in ROUNDS[rk]:
+            h_src, a_src = FEEDS[mid]
+            slot_teams[mid] = [picks.get(h_src), picks.get(a_src)]
+    return slot_teams
+
+
+def _revalidate_picks(db, user_id):
+    """Delete any downstream pick that is no longer one of its slot's two
+    (pick-derived) teams, cascading forward. Returns list of cleared match_ids.
+    Caller commits."""
+    matches_by_id = get_bracket_matches(db)
+    picks = _user_bracket_picks(db, user_id)
+    cleared = []
+    for rk in ["R16", "QF", "SF", "FINAL"]:
+        slot_teams = _compute_slot_teams(matches_by_id, picks)
+        for mid in ROUNDS[rk]:
+            p = picks.get(mid)
+            if p is not None and p not in slot_teams[mid]:
+                db.execute("DELETE FROM bracket_picks WHERE user_id=%s AND match_id=%s",
+                           (user_id, mid))
+                picks.pop(mid, None)
+                cleared.append(mid)
+    return cleared
+
+
+def _bracket_render_payload(db, user_id):
+    matches_by_id = get_bracket_matches(db)
+    picks = _user_bracket_picks(db, user_id)
+    slot_teams = _compute_slot_teams(matches_by_id, picks)
+    acts = actual_sets(db)
+
+    rounds = []
+    for rk in ROUND_ORDER:
+        score_round = {"R32": "R16", "R16": "QF", "QF": "SF",
+                       "SF": "FINAL", "FINAL": "CHAMPION"}[rk]
+        actual_for_round = acts.get(score_round)
+        if score_round == "CHAMPION":
+            actual_set = {actual_for_round} if actual_for_round else set()
+        else:
+            actual_set = actual_for_round or set()
+        ms = []
+        for mid in ROUNDS[rk]:
+            picked = picks.get(mid)
+            result_known = bool(actual_set)
+            ms.append({
+                "match_id": mid,
+                "home": slot_teams[mid][0],
+                "away": slot_teams[mid][1],
+                "picked": picked,
+                "result_known": result_known,
+                "correct": (result_known and picked in actual_set) if picked else None,
+            })
+        picked_n = sum(1 for mid in ROUNDS[rk] if picks.get(mid))
+        rounds.append({"key": rk, "label": ROUND_LABELS[rk], "matches": ms,
+                       "picked_n": picked_n, "total_n": len(ROUNDS[rk])})
+    return rounds, picks, slot_teams
+
+
+@app.route("/bracket")
+@login_required
+def bracket():
+    db = get_request_db()
+    state = get_state(db)
+    status = effective_status(state)
+
+    if status == "coming_soon":
+        return render_template("bracket_coming_soon.html", state=state)
+
+    user_id = session["user_id"]
+    rounds, picks, slot_teams = _bracket_render_payload(db, user_id)
+    locked = (status == "locked")
+
+    settlements = {s["round"]: s for s in db.execute(
+        "SELECT * FROM bracket_settlements WHERE user_id=%s", (user_id,)
+    ).fetchall()}
+    total_pts = sum(s["total_points"] for s in settlements.values())
+
+    # Maps for the client-side cascade.
+    next_map = {str(mid): list(NEXT_SLOT[mid]) for mid in NEXT_SLOT}
+    rounds_map = {rk: ROUNDS[rk] for rk in ROUND_ORDER}
+
+    return render_template("bracket.html",
+                           rounds=rounds, locked=locked, status=status,
+                           picks={str(k): v for k, v in picks.items()},
+                           slot_teams={str(k): v for k, v in slot_teams.items()},
+                           feeds={str(k): list(v) for k, v in FEEDS.items()},
+                           next_map=next_map, rounds_map=rounds_map,
+                           settlements=settlements, total_pts=total_pts,
+                           round_labels=ROUND_LABELS,
+                           bracket_points=BRACKET_POINTS,
+                           grand_max=grand_total_max())
+
+
+@app.route("/api/bracket/pick", methods=["POST"])
+@login_required
+def api_bracket_pick():
+    db = get_request_db()
+    if not is_open_for_writes(db):
+        return jsonify({"error": "Bracket is locked."}), 403
+
+    data = request.get_json() or {}
+    match_id = data.get("match_id")
+    picked = (data.get("picked_team") or "").strip()
+
+    try:
+        match_id = int(match_id)
+    except (TypeError, ValueError):
+        return jsonify({"error": "Bad match id."}), 400
+
+    matches_by_id = get_bracket_matches(db)
+    user_id = session["user_id"]
+    picks = _user_bracket_picks(db, user_id)
+    slot_teams = _compute_slot_teams(matches_by_id, picks)
+
+    if match_id not in slot_teams:
+        return jsonify({"error": "No such match."}), 404
+    if not picked or picked not in slot_teams[match_id]:
+        return jsonify({"error": "Pick must be one of the two teams in this matchup."}), 400
+
+    now = datetime.now(timezone.utc).isoformat()
+    db.execute("""
+        INSERT INTO bracket_picks (user_id, match_id, picked_team, updated_at)
+        VALUES (%s, %s, %s, %s)
+        ON CONFLICT(user_id, match_id) DO UPDATE SET
+            picked_team=EXCLUDED.picked_team, updated_at=EXCLUDED.updated_at
+    """, (user_id, match_id, picked, now))
+
+    cleared = _revalidate_picks(db, user_id)
+    db.commit()
+
+    new_picks = _user_bracket_picks(db, user_id)
+    new_slots = _compute_slot_teams(matches_by_id, new_picks)
+    progress = {rk: sum(1 for mid in ROUNDS[rk] if new_picks.get(mid))
+                for rk in ROUND_ORDER}
+    return jsonify({
+        "ok": True,
+        "cleared": cleared,
+        "picks": {str(k): v for k, v in new_picks.items()},
+        "slot_teams": {str(k): v for k, v in new_slots.items()},
+        "progress": progress,
+    })
+
+
+@app.route("/bracket/leaderboard")
+@login_required
+def bracket_leaderboard():
+    db = get_request_db()
+    user_id = session["user_id"]
+    state = get_state(db)
+    if effective_status(state) == "coming_soon":
+        return render_template("bracket_coming_soon.html", state=state)
+
+    user_groups = db.execute("""
+        SELECT g.* FROM groups g
+        JOIN group_members gm ON gm.group_id=g.id
+        WHERE gm.user_id=%s ORDER BY g.name
+    """, (user_id,)).fetchall()
+
+    selected_group = request.args.get("group", "everyone")
+
+    # Tiebreakers: total points, then champion-correct, then earliest "locked"
+    # (= earliest last-edit time across the user's picks → committed soonest).
+    def standings(group_id=None):
+        where = ""
+        params = []
+        if group_id:
+            where = "JOIN group_members gm ON gm.user_id=u.id AND gm.group_id=%s"
+            params.append(group_id)
+        sql = f"""
+            SELECT u.id, u.team_name,
+                COALESCE(SUM(bs.total_points), 0) AS total_points,
+                COALESCE(MAX(CASE WHEN bs.round='CHAMPION' THEN bs.correct_count END), 0)
+                    AS champion_correct,
+                (SELECT MAX(bp.updated_at) FROM bracket_picks bp WHERE bp.user_id=u.id)
+                    AS last_edit,
+                (SELECT COUNT(*) FROM bracket_picks bp WHERE bp.user_id=u.id)
+                    AS picks_made
+            FROM users u
+            {where}
+            LEFT JOIN bracket_settlements bs ON bs.user_id=u.id
+            GROUP BY u.id, u.team_name
+            HAVING (SELECT COUNT(*) FROM bracket_picks bp WHERE bp.user_id=u.id) > 0
+            ORDER BY total_points DESC, champion_correct DESC, last_edit ASC
+        """
+        return db.execute(sql, params).fetchall()
+
+    selected_group_obj = None
+    if selected_group == "everyone":
+        rows = standings()
+    else:
+        try:
+            gid = int(selected_group)
+            rows = standings(gid)
+            selected_group_obj = next((g for g in user_groups if g["id"] == gid), None)
+        except ValueError:
+            rows = standings()
+
+    return render_template("bracket_leaderboard.html",
+                           user_groups=user_groups, standings=rows,
+                           selected_group=selected_group,
+                           selected_group_obj=selected_group_obj,
+                           current_user_id=user_id, grand_max=grand_total_max())
+
+
+# ── Admin: confirm & open the bracket (gated by ADMIN_KEY) ────────────────────
+
+def _check_admin():
+    if not ADMIN_KEY:
+        return False
+    key = request.values.get("key", "")
+    return key == ADMIN_KEY
+
+
+@app.route("/admin/bracket", methods=["GET", "POST"])
+def admin_bracket():
+    if not _check_admin():
+        return ("Forbidden — append ?key=ADMIN_KEY (and set ADMIN_KEY in .env).", 403)
+
+    db = get_request_db()
+    state = get_state(db)
+    msg = None
+
+    if request.method == "POST":
+        action = request.form.get("action")
+        if action == "edit":
+            mid = int(request.form["match_id"])
+            home = (request.form.get("home_team") or "").strip() or None
+            away = (request.form.get("away_team") or "").strip() or None
+            db.execute(
+                "UPDATE bracket_matches SET home_team=%s, away_team=%s WHERE match_id=%s",
+                (home, away, mid))
+            db.commit()
+            msg = f"Updated matchup {mid}."
+        elif action == "confirm":
+            r32 = db.execute(
+                "SELECT match_id, home_team, away_team FROM bracket_matches "
+                "WHERE round='R32'").fetchall()
+            missing = [r["match_id"] for r in r32
+                       if not r["home_team"] or not r["away_team"]]
+            if len(r32) != 16 or missing:
+                msg = (f"Cannot open: {len(r32)}/16 R32 slots present, "
+                       f"missing teams in {missing}. Fill all R32 matchups first.")
+            else:
+                now = datetime.now(timezone.utc).isoformat()
+                db.execute(
+                    "UPDATE bracket_state SET status='open', open_at=%s, confirmed_at=%s "
+                    "WHERE id=1", (now, now))
+                db.commit()
+                msg = "✅ Bracket is now OPEN. Users can fill their brackets."
+        elif action == "set_lock":
+            lock_at = (request.form.get("lock_at") or "").strip() or None
+            db.execute("UPDATE bracket_state SET lock_at=%s WHERE id=1", (lock_at,))
+            db.commit()
+            msg = f"Lock time set to {lock_at}."
+        state = get_state(db)
+
+    matches = db.execute(
+        "SELECT * FROM bracket_matches ORDER BY round, match_id").fetchall()
+    by_round = {}
+    for m in matches:
+        by_round.setdefault(m["round"], []).append(m)
+    status = effective_status(state)
+
+    return render_template("admin_bracket.html",
+                           state=state, status=status, by_round=by_round,
+                           round_order=ROUND_ORDER, round_labels=ROUND_LABELS,
+                           key=request.values.get("key", ""), msg=msg)
 
 
 # ── Init ──────────────────────────────────────────────────────────────────────

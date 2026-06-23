@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>{% block title %}World Cup Game{% endblock %}</title>
 <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+{% block head %}{% endblock %}
 </head>
 <body>
 {% if session.user_id %}
@@ -12,6 +13,7 @@
   <a href="{{ url_for('predict') }}" class="nav-brand">⚽ <span>World Cup</span></a>
   <div class="nav-links">
     <a href="{{ url_for('predict') }}" {% if request.endpoint=='predict' %}class="active"{% endif %}>Predict</a>
+    <a href="{{ url_for('bracket') }}" {% if request.endpoint in ['bracket','bracket_leaderboard'] %}class="active"{% endif %}>Bracket</a>
     <a href="{{ url_for('leaderboard') }}" {% if request.endpoint=='leaderboard' %}class="active"{% endif %}>Standings</a>
     <a href="{{ url_for('rules') }}" {% if request.endpoint=='rules' %}class="active"{% endif %}>Rules</a>
 
@@ -55,5 +57,6 @@
   {% block content %}{% endblock %}
 </main>
 <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+{% block scripts %}{% endblock %}
 </body>
 </html>

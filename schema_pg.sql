@@ -58,3 +58,49 @@ CREATE TABLE IF NOT EXISTS settlements (
     total_points INTEGER NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- ── Bracket Game (independent of the score game above) ───────────────────────
+
+-- The actual tournament bracket. match_id is the hardcoded skeleton slot id
+-- (73..104), NOT the football-data.org id. home_advances: 1 = home team went
+-- through, 0 = away team went through, NULL = not decided yet.
+CREATE TABLE IF NOT EXISTS bracket_matches (
+    match_id INTEGER PRIMARY KEY,
+    round TEXT NOT NULL,
+    home_team TEXT,
+    away_team TEXT,
+    home_advances INTEGER,
+    api_match_id INTEGER,
+    status TEXT NOT NULL DEFAULT 'SCHEDULED',
+    settled INTEGER NOT NULL DEFAULT 0
+);
+
+-- Single-row game state machine.
+CREATE TABLE IF NOT EXISTS bracket_state (
+    id INTEGER PRIMARY KEY CHECK(id=1),
+    status TEXT NOT NULL DEFAULT 'coming_soon',  -- 'coming_soon'|'open'|'locked'
+    open_at TEXT,
+    lock_at TEXT,
+    confirmed_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS bracket_picks (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    match_id INTEGER NOT NULL REFERENCES bracket_matches(match_id),
+    picked_team TEXT NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(user_id, match_id)
+);
+
+CREATE TABLE IF NOT EXISTS bracket_settlements (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    round TEXT NOT NULL,
+    correct_count INTEGER NOT NULL,
+    base_points INTEGER NOT NULL,
+    bonus_points INTEGER NOT NULL,
+    total_points INTEGER NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(user_id, round)
+);

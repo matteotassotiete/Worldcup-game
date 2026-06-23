@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Bracket — Coming Soon{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/bracket.css') }}">
+{% endblock %}
+{% block content %}
+<div class="cs-wrap">
+  <div class="cs-trophy">🏆</div>
+  <h1 class="cs-title">Bracket Challenge</h1>
+  <p class="cs-tag">Pick the entire knockout bracket — every round, all the way to the champion — and rack up points round by round as the real results roll in. One bracket, separate from your score game.</p>
+
+  <div class="cs-countdown" id="cs-countdown" data-open="{{ state.open_at }}">
+    <div class="cs-unit"><span class="cs-num" id="cs-d">--</span><span class="cs-lbl">days</span></div>
+    <div class="cs-unit"><span class="cs-num" id="cs-h">--</span><span class="cs-lbl">hrs</span></div>
+    <div class="cs-unit"><span class="cs-num" id="cs-m">--</span><span class="cs-lbl">min</span></div>
+    <div class="cs-unit"><span class="cs-num" id="cs-s">--</span><span class="cs-lbl">sec</span></div>
+  </div>
+  <p class="cs-opens">Opens when the group stage wraps — <b>Sat Jun 27</b>, around 9 PM Pacific. Come back then to fill it out before the first Round-of-32 kickoff locks it in.</p>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function(){
+  var el = document.getElementById('cs-countdown');
+  var target = new Date(el.dataset.open).getTime();
+  function pad(n){ return (n<10?'0':'')+n; }
+  function tick(){
+    var diff = target - Date.now();
+    if (diff <= 0){
+      document.querySelector('.cs-opens').innerHTML = 'It’s open! <a href="{{ url_for("bracket") }}">Refresh to start picking →</a>';
+      ['cs-d','cs-h','cs-m','cs-s'].forEach(function(id){document.getElementById(id).textContent='00';});
+      return;
+    }
+    var s = Math.floor(diff/1000);
+    document.getElementById('cs-d').textContent = Math.floor(s/86400);
+    document.getElementById('cs-h').textContent = pad(Math.floor(s%86400/3600));
+    document.getElementById('cs-m').textContent = pad(Math.floor(s%3600/60));
+    document.getElementById('cs-s').textContent = pad(s%60);
+  }
+  tick(); setInterval(tick, 1000);
+})();
+</script>
+{% endblock %}

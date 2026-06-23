@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Admin — Bracket{% endblock %}
+{% block content %}
+<div class="admin-wrap">
+  <h1>Bracket Admin</h1>
+
+  {% if msg %}<div class="admin-msg">{{ msg }}</div>{% endif %}
+
+  <div class="admin-state">
+    <div><b>Status:</b> <span class="admin-pill admin-pill-{{ status }}">{{ status }}</span></div>
+    <div><b>Open at:</b> {{ state.open_at or '—' }}</div>
+    <div><b>Lock at (first R32 kickoff):</b> {{ state.lock_at or '—' }}</div>
+    <div><b>Confirmed at:</b> {{ state.confirmed_at or '— (not yet)' }}</div>
+  </div>
+
+  {% if status == 'coming_soon' %}
+  <form method="post" class="admin-confirm" onsubmit="return confirm('Open the bracket to all users now? This makes the matchups live.');">
+    <input type="hidden" name="key" value="{{ key }}">
+    <input type="hidden" name="action" value="confirm">
+    <button type="submit" class="admin-confirm-btn">✅ Confirm &amp; open bracket</button>
+    <p class="admin-hint">Review every R32 matchup below first. All 16 must have both teams set. Nothing is live until you click this.</p>
+  </form>
+  {% else %}
+  <div class="admin-msg">Bracket is <b>{{ status }}</b> — already live. Edits below still apply to matchups (use with care).</div>
+  {% endif %}
+
+  <form method="post" class="admin-lock-form">
+    <input type="hidden" name="key" value="{{ key }}">
+    <input type="hidden" name="action" value="set_lock">
+    <label>Lock time (UTC ISO, e.g. 2026-06-28T19:00:00Z):
+      <input type="text" name="lock_at" value="{{ state.lock_at or '' }}">
+    </label>
+    <button type="submit">Set lock time</button>
+  </form>
+
+  {% for rk in round_order %}
+    {% set ms = by_round.get(rk, []) %}
+    <h2 class="admin-round-h">{{ round_labels[rk] }} <span class="admin-round-sub">({{ ms|length }})</span></h2>
+    {% for m in ms %}
+    <form method="post" class="admin-match">
+      <input type="hidden" name="key" value="{{ key }}">
+      <input type="hidden" name="action" value="edit">
+      <input type="hidden" name="match_id" value="{{ m.match_id }}">
+      <span class="admin-slot">#{{ m.match_id }}</span>
+      {% if rk == 'R32' %}
+        <input type="text" name="home_team" value="{{ m.home_team or '' }}" placeholder="home (TBD)">
+        <span class="admin-vs">vs</span>
+        <input type="text" name="away_team" value="{{ m.away_team or '' }}" placeholder="away (TBD)">
+        <button type="submit">Save</button>
+      {% else %}
+        <span class="admin-derived">{{ m.home_team or 'winner of feeder' }} vs {{ m.away_team or 'winner of feeder' }} <em>(decided by results)</em></span>
+      {% endif %}
+      {% if m.api_match_id %}<span class="admin-api">api {{ m.api_match_id }}</span>{% endif %}
+    </form>
+    {% endfor %}
+  {% endfor %}
+</div>
+{% endblock %}
