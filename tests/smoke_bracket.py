@@ -88,25 +88,25 @@ def main():
     print("\n4. Fill with cascade")
     r = client.get("/bracket")
     check("/bracket renders fill view", b"Your Bracket" in r.data)
-    # R32 slot 73 = teams[0] vs teams[1]; slot 75 = teams[4] vs teams[5].
-    # FEEDS[90] = (73, 75) -> slot 90 should become winner(73) vs winner(75).
-    r1 = client.post("/api/bracket/pick", json={"match_id": 73, "picked_team": teams[0]})
-    r2 = client.post("/api/bracket/pick", json={"match_id": 75, "picked_team": teams[4]})
+    # R32 slot 75 = teams[4] vs teams[5]; slot 76 = teams[6] vs teams[7].
+    # Standard adjacency: FEEDS[90] = (75, 76) -> slot 90 = winner(75) vs winner(76).
+    r1 = client.post("/api/bracket/pick", json={"match_id": 75, "picked_team": teams[4]})
+    r2 = client.post("/api/bracket/pick", json={"match_id": 76, "picked_team": teams[6]})
     j2 = r2.get_json()
     slot90 = j2["slot_teams"]["90"]
-    check("cascade: slot 90 = winners of 73 & 75",
-          set(slot90) == {teams[0], teams[4]})
+    check("cascade: slot 90 = winners of 75 & 76",
+          set(slot90) == {teams[4], teams[6]})
 
-    # Pick the winner of 90 to be teams[0] (advance further).
-    r3 = client.post("/api/bracket/pick", json={"match_id": 90, "picked_team": teams[0]})
+    # Pick the winner of 90 to be teams[4] (advance further).
+    r3 = client.post("/api/bracket/pick", json={"match_id": 90, "picked_team": teams[4]})
     check("can pick downstream winner", r3.get_json().get("ok"))
 
-    # Now change the upstream pick (73 -> teams[1]); downstream pick of 90 (teams[0]) must clear.
-    r4 = client.post("/api/bracket/pick", json={"match_id": 73, "picked_team": teams[1]})
+    # Now change the upstream pick (75 -> teams[5]); downstream pick of 90 (teams[4]) must clear.
+    r4 = client.post("/api/bracket/pick", json={"match_id": 75, "picked_team": teams[5]})
     j4 = r4.get_json()
     check("changing upstream clears stale downstream pick", "90" not in j4["picks"])
     check("slot 90 now shows new upstream winner",
-          set(j4["slot_teams"]["90"]) == {teams[1], teams[4]})
+          set(j4["slot_teams"]["90"]) == {teams[5], teams[6]})
 
     # Invalid pick rejected.
     rbad = client.post("/api/bracket/pick", json={"match_id": 73, "picked_team": "Nonexistent"})
@@ -134,8 +134,8 @@ def main():
     check("settlement rows written for R16 round", n >= 1)
     row = db.execute("SELECT total_points FROM bracket_settlements "
                      "WHERE user_id=1 AND round='R16'").fetchone()
-    # Alice picked Team1 to win slot 73 (an away team, did NOT advance) and Team8
-    # for slot 75 (home, advanced). So at least 1 correct in R16.
+    # Alice's surviving R32 picks are slot 75 -> teams[5] (away, did NOT advance)
+    # and slot 76 -> teams[6] (home, advanced). So at least 1 correct in R16.
     check("Alice has an R16 settlement", row is not None)
 
     r = client.get("/bracket/leaderboard")

@@ -64,6 +64,25 @@ def _wipe(db):
     db.execute("DELETE FROM bracket_matches")
 
 
+def cmd_real(db):
+    """Seed the REAL hardcoded R32 matchups from data/bracket_r32.py and open the
+    bracket — for previewing/verifying the actual bracket locally (Step 5)."""
+    from data.bracket_r32 import matchups_by_slot
+    _wipe(db)
+    for slot_id, (home, away) in sorted(matchups_by_slot().items()):
+        db.execute("INSERT INTO bracket_matches (match_id, round, home_team, away_team, status) "
+                   "VALUES (%s,'R32',%s,%s,'TIMED')", (slot_id, home, away))
+    for rk in ["R16", "QF", "SF", "FINAL"]:
+        for mid in ROUNDS[rk]:
+            db.execute("INSERT INTO bracket_matches (match_id, round, status) "
+                       "VALUES (%s,%s,'TIMED')", (mid, rk))
+    db.execute("UPDATE bracket_state SET status='open', open_at=%s, confirmed_at=%s, lock_at=%s WHERE id=1",
+               (_now(), _now(), FAR_FUTURE))
+    db.commit()
+    print("✅ Mock bracket OPEN with the REAL hardcoded R32 matchups.")
+    print("   Run ./run_local.sh and open /bracket or /admin/bracket?key=local-admin.")
+
+
 def cmd_open(db):
     _wipe(db)
     # 16 matchups: strong half vs the other half.
@@ -148,8 +167,8 @@ def cmd_status(db):
         print(f"  • {u['team_name']}: {npicks} picks · {total} pts ({detail})")
 
 
-COMMANDS = {"open": cmd_open, "lock": cmd_lock, "simulate": cmd_simulate,
-            "reset": cmd_reset, "status": cmd_status}
+COMMANDS = {"open": cmd_open, "real": cmd_real, "lock": cmd_lock,
+            "simulate": cmd_simulate, "reset": cmd_reset, "status": cmd_status}
 
 
 def main():

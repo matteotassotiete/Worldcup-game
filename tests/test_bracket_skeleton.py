@@ -67,21 +67,25 @@ def test_round_by_round_feed_integrity():
 
 
 def test_feeds_match_spec_exactly():
-    # Verbatim from the spec.
-    assert FEEDS[89] == (74, 77)
-    assert FEEDS[90] == (73, 75)
-    assert FEEDS[91] == (76, 78)
-    assert FEEDS[92] == (79, 80)
-    assert FEEDS[93] == (83, 84)
-    assert FEEDS[94] == (81, 82)
-    assert FEEDS[95] == (86, 88)
-    assert FEEDS[96] == (85, 87)
-    assert FEEDS[97] == (89, 90)
-    assert FEEDS[98] == (93, 94)
-    assert FEEDS[99] == (91, 92)
-    assert FEEDS[100] == (95, 96)
-    assert FEEDS[101] == (97, 98)
-    assert FEEDS[102] == (99, 100)
+    # Standard adjacency — verbatim from the bracket spec (Step 2).
+    # R16: adjacent R32 winners (slot 72+N for match N).
+    assert FEEDS[89] == (73, 74)    # R16_1 = winner(1)  vs winner(2)
+    assert FEEDS[90] == (75, 76)    # R16_2 = winner(3)  vs winner(4)
+    assert FEEDS[91] == (77, 78)    # R16_3 = winner(5)  vs winner(6)
+    assert FEEDS[92] == (79, 80)    # R16_4 = winner(7)  vs winner(8)
+    assert FEEDS[93] == (81, 82)    # R16_5 = winner(9)  vs winner(10)
+    assert FEEDS[94] == (83, 84)    # R16_6 = winner(11) vs winner(12)
+    assert FEEDS[95] == (85, 86)    # R16_7 = winner(13) vs winner(14)
+    assert FEEDS[96] == (87, 88)    # R16_8 = winner(15) vs winner(16)
+    # QF
+    assert FEEDS[97] == (89, 90)    # QF_1 = R16_1 vs R16_2
+    assert FEEDS[98] == (91, 92)    # QF_2 = R16_3 vs R16_4
+    assert FEEDS[99] == (93, 94)    # QF_3 = R16_5 vs R16_6
+    assert FEEDS[100] == (95, 96)   # QF_4 = R16_7 vs R16_8
+    # SF
+    assert FEEDS[101] == (97, 98)   # SF_1 = QF_1 vs QF_2 (left half)
+    assert FEEDS[102] == (99, 100)  # SF_2 = QF_3 vs QF_4 (right half)
+    # Final
     assert FEEDS[104] == (101, 102)
 
 

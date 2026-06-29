@@ -35,21 +35,31 @@ ROUND_LABELS = {
 
 # For each downstream match: (home_feeder_slot, away_feeder_slot).
 # The winner of the home feeder occupies the home slot; the away feeder the away.
+#
+# STANDARD ADJACENCY: adjacent R32 winners meet in the R16, and so on, with the
+# two halves meeting only in the Final. R32 match N lives in slot 72+N, so:
+#   R16_1 = winner(1) vs winner(2)  -> slot 89 = (73, 74), etc.
+# This mirrors data/bracket_r32.py — slots 73..80 are the LEFT half, 81..88 the
+# RIGHT half, and they cannot meet before the Final.
 FEEDS = {
-    89: (74, 77),
-    90: (73, 75),
-    91: (76, 78),
-    92: (79, 80),
-    93: (83, 84),
-    94: (81, 82),
-    95: (86, 88),
-    96: (85, 87),
-    97: (89, 90),
-    98: (93, 94),
-    99: (91, 92),
-    100: (95, 96),
-    101: (97, 98),
-    102: (99, 100),
+    # Round of 16  (each = two adjacent R32 winners)
+    89: (73, 74),   # R16_1 = winner(1)  vs winner(2)
+    90: (75, 76),   # R16_2 = winner(3)  vs winner(4)
+    91: (77, 78),   # R16_3 = winner(5)  vs winner(6)
+    92: (79, 80),   # R16_4 = winner(7)  vs winner(8)
+    93: (81, 82),   # R16_5 = winner(9)  vs winner(10)
+    94: (83, 84),   # R16_6 = winner(11) vs winner(12)
+    95: (85, 86),   # R16_7 = winner(13) vs winner(14)
+    96: (87, 88),   # R16_8 = winner(15) vs winner(16)
+    # Quarter-finals
+    97: (89, 90),   # QF_1 = winner(R16_1) vs winner(R16_2)
+    98: (91, 92),   # QF_2 = winner(R16_3) vs winner(R16_4)
+    99: (93, 94),   # QF_3 = winner(R16_5) vs winner(R16_6)
+    100: (95, 96),  # QF_4 = winner(R16_7) vs winner(R16_8)
+    # Semi-finals
+    101: (97, 98),  # SF_1 = winner(QF_1) vs winner(QF_2)   — LEFT half
+    102: (99, 100), # SF_2 = winner(QF_3) vs winner(QF_4)   — RIGHT half
+    # Final
     104: (101, 102),
 }
 
