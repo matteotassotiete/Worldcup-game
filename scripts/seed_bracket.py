@@ -52,8 +52,9 @@ ALIASES = {
     "unitedstates": "usa",
     "cotedivoire": "ivorycoast",
     "bosniaherzegovina": "bosniaandherzegovina",
+    "bosniah": "bosniaandherzegovina",          # API shortName "Bosnia-H."
     "caboverde": "capeverde",
-    "congodr": "drcongo",
+    "congodr": "drcongo",                        # API shortName "Congo DR"
     "democraticrepublicofcongo": "drcongo",
 }
 
@@ -165,9 +166,13 @@ def main():
                     status       = EXCLUDED.status
             """, (slot_id, rk, api_id, status))
 
-    # Lock time = first R32 kickoff (only updates if we found it from the API).
-    if earliest_r32:
+    # Lock time = first R32 kickoff. Only set it during INITIAL seeding — never
+    # clobber a lock_at on an already-confirmed bracket (the admin may have moved
+    # it deliberately, e.g. to grant a grace window).
+    if earliest_r32 and not state["confirmed_at"]:
         db.execute("UPDATE bracket_state SET lock_at=%s WHERE id=1", (earliest_r32,))
+    elif state["confirmed_at"]:
+        print(f"(lock_at left unchanged at {state['lock_at']} — bracket already confirmed)")
 
     db.commit()
 
